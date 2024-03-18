@@ -1,146 +1,128 @@
-format = """
-[░▒▓](#a3aed2)\
-[ $os ](bg:#a3aed2 fg:#090c0c)\
-[](bg:#769ff0 fg:#a3aed2)\
+format = """\
+($username)\
+($hostname)\
+($os) \
 $directory\
-[](fg:#769ff0 bg:#394260)\
-$git_branch\
-$git_status\
-[](fg:#394260 bg:#212736)\
-$nodejs\
-$rust\
-$php\
-$python\
-[](fg:#212736 bg:#1d2230)\
-$time\
-[ ](fg:#1d2230)\
-\n$character"""
+($nodejs)\
+($rust)\
+($php)\
+($python)\
+($git_branch)\
+($git_status)\
+$fill\
+($status)\
+($cmd_duration)\
+$time
+$character"""
+
+[directory]
+format = "\\[[$path]($style)[$read_only]($read_only_style)\\] "
+style = "cyan"
+read_only = ""
+truncation_length = 999
+truncation_symbol = "…/"
+truncate_to_repo = true
+
+[character]
+success_symbol = "[❯](green)"
+error_symbol = "[❯](red)"
+vimcmd_symbol = "[❮](purple)"
+
+[fill]
+symbol=" "
+
+[username]
+format = '[$user]($style)@'
+show_always = true
+
+[hostname]
+format = "[$hostname]($style)"
+disabled = false
+ssh_only = false
+
 
 [os]
-format = "[$symbol](bg:#a3aed2 fg:#090c0c)"
+format = "[\\($symbol\\)]($style)"
+style = "#637679"
 disabled = false
 
 [os.symbols]
-# Alpaquita = ""
 Alpine = ""
 Amazon = ""
 Android = ""
 Arch = ""
-# Artix = ""
 CentOS = ""
 Debian = ""
-# DragonFly = ""
-# Emscripten = ""
-# EndeavourOS = ""
 Fedora = ""
 FreeBSD = ""
-# Garuda = "󰛓"
-# Gentoo = ""
-# HardenedBSD = "󰞌"
-# Illumos = "󰈸"
 Linux = ""
-# Mabox = ""
 Macos = ""
-# Manjaro = ""
-# Mariner = ""
-# MidnightBSD = ""
+Manjaro = ""
 Mint = ""
-# NetBSD = ""
-# NixOS = ""
-# OpenBSD = "󰈺"
+OpenBSD = "󰈺"
 openSUSE = ""
-# OracleLinux = "󰌷"
-# Pop = ""
+OracleLinux = "󰌷"
 Raspbian = ""
 Redhat = ""
 RedHatEnterprise = ""
-# Redox = "󰀘"
-# Solus = "󰠳"
 SUSE = ""
 Ubuntu = ""
 Unknown = ""
 # Windows = ""
 Windows = ""
 
-[directory]
-# style = "fg:#e3e5e5 bg:#769ff0"
-style = "fg:#090c0c bg:#769ff0"
-format = "[ $path ]($style)"
-truncation_length = 999
-truncation_symbol = "…/"
-truncate_to_repo = true
-use_os_path_sep = false
-###
-#home_symbol = " ~"
-home_symbol = " ~"
-# repo_root_style = "fg:#e3e5e5 bg:#769ff0"
-# read_only_style = '197'
-read_only = ' '
-
-[directory.substitutions]
-###
-"Documents" = " "
-"Downloads" = " "
-"Music" = " "
-"Pictures" = " "
-"Windows" = " "
-
 [git_branch]
-symbol = ""
-style = "bg:#394260"
-format = '[[ $symbol $branch ](fg:#769ff0 bg:#394260)]($style)'
+format = "[\\[$branch\\]]($style)"
+style = "bright-black"
 
 [git_status]
-style = "bg:#394260"
-format = '[[($all_status$ahead_behind )](fg:#769ff0 bg:#394260)]($style)'
-###
-conflicted = " "
-up_to_date = ' '
-untracked = ' '
-ahead = '+ ${count}'
-diverged = '+ ${ahead_count} - ${behind_count}'
-behind = '- 0;276;0c${count}'
-###
-stashed = ' '
-modified = ' '
-staged = '[++\($count\)](green)'
-###
-renamed = ' '
-deleted = ' '
+format = "[( {$ahead_behind} )[(*$conflicted$untracked$modified$staged$renamed$deleted)](218) ]($style) "
+#format = "[($conflicted$untracked$modified$staged$renamed$deleted) ($ahead_behind$stashed)]($style)"
+style = "cyan"
+ahead = '+ ${count}'
+diverged = '+ ${ahead_count} - ${behind_count}'
+behind = '- ${count}'
+conflicted = " "
+untracked = " "
+modified = " "
+staged = " "
+renamed = " "
+deleted = " "
+stashed = " "
+
+[status]
+format = '\[[$symbol$status( !SIG$signal_name$maybe_int)]($style)\] '
+disabled = false
+map_symbol = false
+#symbol = '❌ '
+symbol = "X "
+
+[cmd_duration]
+format = '[\[$duration\]]($style) '
+style = "yellow"
+min_time = 1000
 
 [nodejs]
 symbol = ""
-style = "bg:#212736"
-format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
+format = '\[[$symbol ($version)]($style)\] '
 
 [rust]
 symbol = ""
-style = "bg:#212736"
-format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
-
-# [golang]
-# symbol = ""
-# style = "bg:#212736"
-# format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
+format = '\[[$symbol ($version)]($style)\] '
 
 [php]
 symbol = ""
-style = "bg:#212736"
-format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
+format = '\[[$symbol ($version)]($style)\] '
 
 [python]
-###
-#symbol = "󰌠 "
-symbol = " "
+format = '\[[$symbol $virtualenv $version]($style)\] '
+symbol = ""
 pyenv_version_name = false
 python_binary = ['./venv/bin/python', 'python', 'python3', 'python2']
-style = "bg:#212736"
-format = '[[ $symbol ($version) ](fg:#769ff0 bg:#212736)]($style)'
-#format = 'via [${symbol}${pyenv_prefix}(${version} )(\($virtualenv\) )]($style)'
+style = "bright-yellow"
 disabled = false
 
 [time]
-disabled = false
 time_format = "%R" # Hour:Minute Format
-style = "bg:#1d2230"
-format = '[[  $time ](fg:#a0a9cb bg:#1d2230)]($style)'
+format = '[ $time]($style)'
+disabled = false

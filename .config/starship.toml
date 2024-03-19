@@ -1,7 +1,7 @@
 format = """\
 ($username)\
 ($hostname)\
-($os) \
+($os)\
 $directory\
 ($nodejs)\
 ($rust)\
@@ -9,10 +9,9 @@ $directory\
 ($python)\
 ($git_branch)\
 ($git_status)\
-$fill\
-($status)\
 ($cmd_duration)\
 $time
+($status)\
 $character"""
 
 [directory]
@@ -39,7 +38,6 @@ show_always = true
 format = "[$hostname]($style)"
 disabled = false
 ssh_only = false
-
 
 [os]
 format = "[\\($symbol\\)]($style)"
@@ -72,7 +70,8 @@ Unknown = ""
 Windows = ""
 
 [git_branch]
-format = "[\\[$branch\\]]($style)"
+symbol = ""
+format = "[\\[$symbol $branch\\]]($style)"
 style = "bright-black"
 
 [git_status]
@@ -98,7 +97,7 @@ map_symbol = false
 symbol = "X "
 
 [cmd_duration]
-format = '[\[$duration\]]($style) '
+format = '\[[$duration]($style)\] '
 style = "yellow"
 min_time = 1000
 
@@ -124,5 +123,6 @@ disabled = false
 
 [time]
 time_format = "%R" # Hour:Minute Format
-format = '[ $time]($style)'
+format = '\[[ $time]($style)\]'
+style = "#af9259"
 disabled = false

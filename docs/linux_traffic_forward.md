@@ -15,9 +15,11 @@ edit the sysctl.conf file:
 Find the line corresponding with the type of forwarding you wish to enable, uncomment it, and set the value to 1.
 Then run (or reboot the system):
 
+` sudo sysctl -p `
+
+
 ---
 
-` sudo sysctl -p `
 
 Install iptables permanent package:
 
@@ -27,7 +29,7 @@ Check actual iptables rules:
 
 ` sudo iptables -L `
 
-Configure the utility to allow traffic forwarding, specify only your current lan addresses as allowed sources:
+Configure the utility to allow traffic forwarding, specify only your private network addresses as allowed sources:
 
 ` sudo iptables -A FORWARD -j ACCEPT -s 192.168.0.0/24 `
 
@@ -35,3 +37,6 @@ Configure NAT (network address translation) within the utility. This modifies th
 
 ` sudo iptables -t nat -s 192.168.0.0/24 -A POSTROUTING -j MASQUERADE `
 
+In requested, configure a PREROUTING rule to translate destination address:
+
+` sudo iptables -t nat -A PREROUTING -d 192.168.1.0/24 -i ens160 -j NETMAP --to 192.168.2.0/24 `

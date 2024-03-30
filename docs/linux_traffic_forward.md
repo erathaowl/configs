@@ -14,6 +14,7 @@ edit the sysctl.conf file:
 
 Find the line corresponding with the type of forwarding you wish to enable, uncomment it, and set the value to 1.
 Then run (or reboot the system):
+
 ---
 
 ` sudo sysctl -p `

@@ -1,4 +1,4 @@
-## Traffic Forwarding in ubuntu 20
+## Traffic Forwarding in ubuntu 20+
 
 On the Linux system you intend to use as a router, determine if IPv4 forwarding is currently enabled or disabled. The command below outputs the value of the given parameter. A value of 1 indicates that the setting is enabled, while 0 indicates it is disabled.
 
@@ -40,3 +40,8 @@ Configure NAT (network address translation) within the utility. This modifies th
 In requested, configure a PREROUTING rule to translate destination address:
 
 ` sudo iptables -t nat -A PREROUTING -d 192.168.1.0/24 -i ens160 -j NETMAP --to 192.168.2.0/24 `
+
+At last make the change permanent:
+
+` sudo iptables-save | sudo tee /etc/iptables/rules.v4 `
+

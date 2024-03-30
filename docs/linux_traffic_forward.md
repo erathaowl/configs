@@ -1,1 +1,4 @@
-***Traffic Forwarding in linux***
+#Traffic Forwarding in linux
+
+`sudo apt install iptables-permanent
+

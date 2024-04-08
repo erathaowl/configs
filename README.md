@@ -20,7 +20,7 @@ Italian keyboard:
 ## tmux customization
 
 `sudo apt install tmux`\
-`https://raw.githubusercontent.com/erathaowl/configs/main/tmux/lite/.tmux.conf`
+`wget https://raw.githubusercontent.com/erathaowl/configs/main/tmux/lite/.tmux.conf`
 
 *https://github.com/gpakosz/.tmux*
 

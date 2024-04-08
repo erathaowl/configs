@@ -6,9 +6,11 @@ If you find something usefull feel free to grab and use, but most likely you can
 
 ## starship prompt
 
-https://starship.rs/
+https://starship.rs/ (https://github.com/starship/starship)
 
-https://github.com/starship/starship
+custom confug file:
+
+https://raw.githubusercontent.com/erathaowl/configs/main/.config/starship.toml
 
 
 ## gsudo (windows)

@@ -10,3 +10,6 @@ export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
 
 # disable ctrl+s = suspend terminal
 stty -ixon
+
+# load starship
+eval "$(starship init bash)"

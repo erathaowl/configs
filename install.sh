@@ -10,9 +10,11 @@ apt update && apt install -y \
   nmap \
   wget \
   bat \
-  starship \
   tmux \
   nano
+
+# Install starship
+curl -sS https://starship.rs/install.sh | sh
 
 # Download config files
 mkdir -p ~/.ssh

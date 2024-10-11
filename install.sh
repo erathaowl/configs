@@ -1,4 +1,4 @@
-GITURL=https://github.com/erathaowl/configs/blob/main
+GITURL=https://raw.githubusercontent.com/erathaowl/configs/refs/heads/main
 
 # install stuffs
 apt update && apt install -y \

@@ -26,7 +26,7 @@ wget $GITURL/bash/.bashrc -o ~/.bash_addons
 wget $GITURL/bash/.bash_aliases -o ~/.bash_aliases
 
 # add bash_addons loading line
-if grep -Fxq ".bash_addons" ~/.bashrc
+if grep -Fxq "bash_addons" ~/.bashrc
 then
     :
 else

@@ -1,3 +1,5 @@
+set +x
+
 GITURL=https://raw.githubusercontent.com/erathaowl/configs/refs/heads/main
 
 # install stuffs
@@ -12,8 +14,8 @@ apt update && apt install -y \
   tmux
 
 # Download config files
-mkdir ~/.ssh
-mkdir ~/.config
+mkdir -p ~/.ssh
+mkdir -p ~/.config
 wget $GITURL/.ssh/config -o ~/.ssh/config
 wget $GITURL/.config/starship.toml -o ~/.config/starship.toml
 wget $GITURL/tmux/lite/.tmux.conf -o ~/.tmux.conf

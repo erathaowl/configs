@@ -12,8 +12,10 @@ apt update && apt install -y \
   tmux
 
 # Download config files
-wget --force-directories $GITURL/.ssh/config -o ~/.ssh/config
-wget --force-directories $GITURL/.config/starship.toml -o ~/.config/starship.toml
+mkdir ~/.ssh
+mkdir ~/.config
+wget $GITURL/.ssh/config -o ~/.ssh/config
+wget $GITURL/.config/starship.toml -o ~/.config/starship.toml
 wget $GITURL/tmux/lite/.tmux.conf -o ~/.tmux.conf
 wget $GITURL/bash/.bashrc -o ~/.bash_addons
 wget $GITURL/bash/.bash_aliases -o ~/.bash_aliases

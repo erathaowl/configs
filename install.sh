@@ -11,7 +11,8 @@ apt update && apt install -y \
   wget \
   bat \
   starship \
-  tmux
+  tmux \
+  nano
 
 # Download config files
 mkdir -p ~/.ssh

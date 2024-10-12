@@ -2,5 +2,5 @@ alias nano='nano -c'
 alias ll='ls -alFh'
 
 # require batcat installed: `sudo apt install bat`
-alias bat="batcat --paging=never --style=plain"
-alias nbat="batcat --paging=never"
+alias cat="batcat --paging=never --style=plain"
+alias bat="batcat --paging=never"

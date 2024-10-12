@@ -14,7 +14,8 @@ apt update && apt install -y \
   nano
 
 # Install starship
-curl -sS https://starship.rs/install.sh | sh
+wget https://starship.rs/install.sh -o /tmo/starship-install.sh
+bash /tmp/starship-install.md --yes
 
 # Download config files
 mkdir -p ~/.ssh

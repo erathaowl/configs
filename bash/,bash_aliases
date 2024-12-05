@@ -1,5 +1,7 @@
 alias nano='nano -c'
 alias ll='ls -alFh'
+alias gless='less -G'
+alias gview='view "+normal G$"'
 
 # require batcat installed: `sudo apt install bat`
 alias cat="batcat --paging=never --style=plain"

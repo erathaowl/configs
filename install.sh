@@ -33,8 +33,9 @@ wget $GITURL/bash/.bashrc -o ~/.bash_addons
 
 # Download custom aliases and create a link for bash
 wget $GITURL/bash/.aliases -o ~/.aliases
-rm ~/.bash_aliases
+#rm ~/.bash_aliases
 ln -s ~/.aliases ~/.bash_aliases
+ln -s ~/.aliases ~/.config/.user_aliases
 
 # add bash_addons loading line
 if ! grep -Fq "~/.bash_addons" ~/.bashrc

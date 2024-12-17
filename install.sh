@@ -26,16 +26,19 @@ bash /tmp/starship-install.md --yes
 # Download config files
 mkdir -p ~/.ssh
 mkdir -p ~/.config
+
 wget $GITURL/.ssh/config -o ~/.ssh/config
 wget $GITURL/.config/starship.toml -o ~/.config/starship.toml
 wget $GITURL/tmux/lite/.tmux.conf -o ~/.tmux.conf
-wget $GITURL/bash/.bashrc -o ~/.bash_addons
+wget $GITURL/bash/.bash_addons -o ~/.bash_addons
 
 # Download custom aliases and create a link for bash
-wget $GITURL/bash/.aliases -o ~/.aliases
-#rm ~/.bash_aliases
-ln -s ~/.aliases ~/.bash_aliases
-ln -s ~/.aliases ~/.config/.user_aliases
+wget $GITURL/bash/.aliases -o ~/.config/.aliases
+#if [ ! -f /.bash_aliases ]; then
+  #rm ~/.bash_aliases
+#fi
+ln -s ~/.config/.aliases ~/.bash_aliases
+ln -s ~/.config/.aliases ~/.config/.user_aliases
 
 # add bash_addons loading line
 if ! grep -Fq "~/.bash_addons" ~/.bashrc

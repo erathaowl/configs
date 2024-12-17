@@ -1,11 +1,11 @@
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root. Use 'sudo'."
+    exit 1
+fi
+
 set +x
 
 GITURL=https://raw.githubusercontent.com/erathaowl/configs/refs/heads/main
-
-# download eza keys
-wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
-echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
-chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
 
 # install stuffs
 apt update && apt install -y \
@@ -16,12 +16,23 @@ apt update && apt install -y \
   wget \
   bat \
   tmux \
-  nano \
-  eza
+  nano
+
+
+# download eza keys
+if whiptail --yesno "Install eza?" 10 60; then
+    mkdir -p /etc/apt/keyrings
+    wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
+    chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+    apt update && apt install -y eza
+fi
 
 # Install starship
-wget https://starship.rs/install.sh -o /tmo/starship-install.sh
-bash /tmp/starship-install.md --yes
+if whiptail --yesno "Install starship?" 10 60; then
+    wget https://starship.rs/install.sh -o /tmo/starship-install.sh
+    bash /tmp/starship-install.md --yes
+fi
 
 # Download config files
 mkdir -p ~/.ssh

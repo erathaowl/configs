@@ -30,13 +30,15 @@ wget $GITURL/.ssh/config -o ~/.ssh/config
 wget $GITURL/.config/starship.toml -o ~/.config/starship.toml
 wget $GITURL/tmux/lite/.tmux.conf -o ~/.tmux.conf
 wget $GITURL/bash/.bashrc -o ~/.bash_addons
-wget $GITURL/bash/.bash_aliases -o ~/.bash_aliases
+
+# Download custom aliases and create a link for bash
+wget $GITURL/bash/.aliases -o ~/.aliases
+rm ~/.bash_aliases
+ln -s ~/.aliases ~/.bash_aliases
 
 # add bash_addons loading line
-if grep -Fq "~/.bash_addons" ~/.bashrc
+if ! grep -Fq "~/.bash_addons" ~/.bashrc
 then
-    :
-else
     echo ". ~/.bash_addons" >> ~/.bashrc
 fi
 

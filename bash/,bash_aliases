@@ -2,7 +2,7 @@ alias nano='nano -c'
 
 #alias ll='ls -alFh'
 alias ls="eza --icons --group-directories-first"
-alias ls="eza --icons --group-directories-first --long --all"
+alias ll="eza --group-directories-first --long --all --octal-permissions --no-permissions --group --header --time-style=long-iso --icons"
 
 alias grep='grep --color'
 alias gless='less -G'

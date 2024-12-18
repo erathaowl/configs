@@ -1,4 +1,22 @@
+# Set case insensitive shell completion
+if [ -n "$BASH_VERSION" ]; then
+  bind "set completion-ignore-case on";
+fi
+
 alias nano='nano -c'
+alias gistory="history | grep -i $1"
+alias untar="tar -xvf"
+alias ip="ip -c"
+alias cd..="cd .."
+
+# Create parent directory on demand if needed
+alias mksdir='mkdir -pv'
+
+# Watch with color for commands like "service"
+alias watchc="watch -c SYSTEMD?COLORS=1"
+
+# disable history and clear itself from history; if inside tmux change to red the background color of the pane
+alias nohistory="set +o history && history -d -1 && if [ $TMUX ]; then tmux select-pane -P 'bg=#440000'; fi"
 
 if command -v eza 2>&1 >/dev/null
 then
@@ -6,6 +24,7 @@ then
     alias ls="eza --icons --group-directories-first"
     alias ll="eza --group-directories-first --long --all --octal-permissions --no-permissions --group --header --time-style=long-iso --icons"
 else
+    alias ls="ls --color=auto"
     alias ll='ls -alFhC'
 fi
 
@@ -18,6 +37,15 @@ then
     # require batcat installed: `sudo apt install bat`
     alias cat="batcat --paging=never --style=plain"
     alias bat="batcat --paging=never"
+fi
+
+# Hash files from shell
+if command -v openssl 2>&1 >/dev/null
+then
+    alias sha1="openssl sha1"
+    alias md5="openssl md5"
+    alias sha512="openssl sha512"
+    alias sha256="openssl sha256"
 fi
 
 if command -v batcat 2>&1 >/dev/null

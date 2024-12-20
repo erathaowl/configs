@@ -6,8 +6,14 @@ fi
 alias nano='nano -c'
 alias gistory="history | grep -i $1"
 alias untar="tar -xvf"
-alias ip="ip -c"
 alias cd..="cd .."
+alias ip="ip -c"
+
+# Some usefull network related aliases
+alias iplist="ip -br -c addr show"
+alias maclist="ip -br -c addr show"
+alias ipa=iplist
+alias ipl=maclist
 
 # Create parent directory on demand if needed
 alias mksdir='mkdir -pv'
@@ -15,12 +21,12 @@ alias mksdir='mkdir -pv'
 # Watch with color for commands like "service"
 alias watchc="watch -c SYSTEMD?COLORS=1"
 
-# disable history and clear itself from history; if inside tmux change to red the background color of the pane
+# Disable history and clear itself from history; if inside tmux change to red the background color of the pane
 alias nohistory="set +o history && history -d -1 && if [ $TMUX ]; then tmux select-pane -P 'bg=#440000'; fi"
 
+# Check and use eza in place of standard ls
 if command -v eza 2>&1 >/dev/null
 then
-    # use eza in place of standard ls
     alias ls="eza --icons --group-directories-first"
     alias ll="eza --group-directories-first --long --all --octal-permissions --no-permissions --group --header --time-style=long-iso --icons"
 else
@@ -28,12 +34,16 @@ else
     alias ll='ls -alFhC'
 fi
 
+# Grep custom shortcuts
 alias grep='grep --color=auto'
 alias egrep='egrep --color=auto'
 alias fgrep='fgrep --color=auto'
+
+# Less custom shortcut
 alias gless='less -G'
 alias gview='view "+normal G$"'
 
+# Check and replace standard cat with bat
 if command -v batcat 2>&1 >/dev/null
 then
     # require batcat installed: `sudo apt install bat`
@@ -41,16 +51,8 @@ then
     alias bat="batcat --paging=never"
 fi
 
-# Hash files from shell
-if command -v openssl 2>&1 >/dev/null
-then
-    alias sha1="openssl sha1"
-    alias md5="openssl md5"
-    alias sha512="openssl sha512"
-    alias sha256="openssl sha256"
-fi
-
-if command -v batcat 2>&1 >/dev/null
-then
-    eval "$(starship init $SHELL)"
-fi
+# Hashing shortcuts
+alias sha1="sha1sum"
+alias md5="md5sum"
+alias sha512="sha512sum"
+alias sha256="sha256sum"

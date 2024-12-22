@@ -10,6 +10,7 @@ GITURL=https://raw.githubusercontent.com/erathaowl/configs/refs/heads/main
 # install stuffs
 apt update && apt install -y \
   net-tools \
+  htop \
   git \
   curl \
   nmap \

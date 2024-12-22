@@ -31,7 +31,7 @@ fi
 
 # Install starship
 if whiptail --yesno "Install starship?" 10 60; then
-    wget https://starship.rs/install.sh -o /tmo/starship-install.sh
+    wget https://starship.rs/install.sh -O /tmo/starship-install.sh
     bash /tmp/starship-install.md --yes
 fi
 
@@ -39,13 +39,13 @@ fi
 mkdir -p ~/.ssh
 mkdir -p ~/.config
 
-wget $GITURL/.ssh/config -o ~/.ssh/config
-wget $GITURL/.config/starship.toml -o ~/.config/starship.toml
-wget $GITURL/tmux/lite/.tmux.conf -o ~/.tmux.conf
-wget $GITURL/bash/.bash_addons -o ~/.bash_addons
+wget $GITURL/.ssh/config -O ~/.ssh/config
+wget $GITURL/.config/starship.toml -O ~/.config/starship.toml
+wget $GITURL/tmux/lite/.tmux.conf -O ~/.tmux.conf
+wget $GITURL/bash/.bash_addons -O ~/.bash_addons
 
 # Download custom aliases and create a link for bash
-wget $GITURL/bash/.aliases -o ~/.config/.aliases
+wget $GITURL/bash/.aliases -O ~/.config/.aliases
 #if [ ! -f /.bash_aliases ]; then
   #rm ~/.bash_aliases
 #fi

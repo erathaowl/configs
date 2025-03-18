@@ -6,6 +6,8 @@ If you find something usefull feel free to grab and use, but most likely you can
 Italian keyboard:
 - backtick: `Alt + 96`
 - tilde: `Alt + 126`
+- È: `Alt + 0200`
+- É: `Alt + 0201`
 
  
 ## starship prompt

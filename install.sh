@@ -17,7 +17,8 @@ apt update && apt install -y \
   wget \
   bat \
   tmux \
-  nano
+  nano \
+  renameutils
 
 
 # download eza keys

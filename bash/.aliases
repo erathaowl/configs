@@ -12,8 +12,10 @@ alias ip="ip -c"
 # Some usefull network related aliases
 alias iplist="ip -br -c addr show"
 alias maclist="ip -br -c addr show"
+alias routelist="ip -c r"
 alias ipa=iplist
-alias ipl=maclist
+alias ipm=maclist
+alias ipr=routelist
 
 # Create parent directory on demand if needed
 alias mksdir='mkdir -pv'

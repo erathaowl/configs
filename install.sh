@@ -23,6 +23,7 @@ apt update && apt install -y \
 
 # download eza keys
 if whiptail --yesno "Install eza?" 10 60; then
+    echo "installing EZA..."
     mkdir -p /etc/apt/keyrings
     wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
     echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
@@ -32,6 +33,7 @@ fi
 
 # Install starship
 if whiptail --yesno "Install starship?" 10 60; then
+    echo "installing Starship..."
     wget https://starship.rs/install.sh -O /tmo/starship-install.sh
     bash /tmp/starship-install.md --yes
 fi

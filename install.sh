@@ -14,7 +14,7 @@ case "$choice" in
     w) UI="whiptail" ;;
     d) UI="dialog" ;;
     t) UI="text" ;;
-    *) echo "Scelta non valida"; exit 1 ;;
+    *) echo "Invalid choice"; exit 1 ;;
 esac
 
 

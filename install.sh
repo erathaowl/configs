@@ -83,7 +83,7 @@ if confirm_install "shell customizations"; then
 
     # Download custom aliases and create a link for bash for both user and root
     wget $GITURL/bash/.aliases -O ~/.config/.user_aliases
-    wget $GITURL/bash/.aliases -O $USER_HOME/.config/user_aliases
+    wget $GITURL/bash/.aliases -O $USER_HOME/.config/.user_aliases
 
     ln -sf ~/.config/.user_aliases ~/.bash_aliases
     ln -sf $USER_HOME/.config/.user_aliases $USER_HOME/.bash_aliases

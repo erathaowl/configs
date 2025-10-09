@@ -49,6 +49,7 @@ apt update && apt install -y \
   bat \
   tmux \
   nano \
+  ncdu \
   renameutils
 
 # Install eza

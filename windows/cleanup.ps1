@@ -97,7 +97,7 @@ if ($null -eq $action) {
     Write-Host "2) Folders and EventLogs Cleanup"
     Write-Host "3) Free space Cleanup"
     Write-Host "4) All"
-    Write-Host "5) Esci"
+    Write-Host "5) Quit"
     Write-Host ""
 
     $choice = Read-Host "Seleziona un'opzione"

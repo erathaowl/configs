@@ -1,77 +1,131 @@
 param($action, $UserProfile)
 
-#######################################################################################
-$EnableEventLogsChoice = $false;
+###############################
+# CONFIG
+###############################
+$EnableEventLogsChoice = $false
 
-#######################################################################################
-# Disk cleanup, run the configuration saved with "cleanmgr.exe /sageset:1"
-sudo cleanmgr.exe /sagerun:1
+###############################
+# FUNCTIONS
+###############################
 
-#######################################################################################
-# Run current script as SYSTEM
-if ($null -eq $action) {
-	$UserProfile = [Environment]::ExpandEnvironmentVariables('%userprofile%')
-    $newProcess = new-object System.Diagnostics.ProcessStartInfo "sudo";
-    $newProcess.Arguments = 'psexec -accepteula -nobanner -i -s -d pwsh -File "' + $script:MyInvocation.MyCommand.Path + '" go "' + $UserProfile + '"'
-    [System.Diagnostics.Process]::Start($newProcess);
-    timeout 20
-	exit
+function Run-AsSystem {
+    param($UserProfile, $Task)
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo "sudo"
+    $psi.Arguments = 'psexec -accepteula -nobanner -i -s -d pwsh -File "' +
+                     $script:MyInvocation.MyCommand.Path +
+                     '" system "' + $UserProfile + '" "' + $Task + '"'
+
+    [System.Diagnostics.Process]::Start($psi)
+    timeout 3
+    exit
 }
 
-#######################################################################################
-$SysTempFolder = [Environment]::ExpandEnvironmentVariables('%temp%\*')
-# $RDPCacheFolder = [Environment]::ExpandEnvironmentVariables('%LOCALAPPDATA%\Microsoft\Terminal Server Client\Cache\*')
-
-$UserTempFolder = $UserProfile + '\AppData\Local\Temp\*'
-$UserRDPCacheFolder = $UserProfile + '\AppData\Local\Microsoft\Terminal Server Client\Cache\*'
-$UserThumbnailCache = $UserProfile + '\AppData\Local\Microsoft\Windows\Explorer\*'
-
-# Clear files in temporary folder
-sdelete -s -r $UserRDPCacheFolder
-sdelete -s -r $SysTempFolderSys
-sdelete -s -r $UserTempFolder
-sdelete -s -r $UserThumbnailCache
-
-#######################################################################################
-if ($EnableEventLogsChoice -eq $true) {
-	# Select wich event log to clear
-	$Prompt = "Clear Events Logs?"
-	$Choices = [System.Management.Automation.Host.ChoiceDescription[]] @("&All", "&Minimal", "&Cancel")
-	$Default = 0
-	 
-	# Prompt for choose which logs to clear
-	$Choice = $host.UI.PromptForChoice("", $Prompt, $Choices, $Default)
-	 
-	# Create a list of event logs to clear based on user choice
-	switch($Choice) {
-		0 { $EventLogs = (wevtutil el) } # all events logs
-		1 { $EventLogs = @("Application", 
-						   "Security", 
-						   "Setup", 
-						   "System") }
-		2 { $EventLogs = @()} # none
-	}
-} else {
-	# Clear all event logs
-	$EventLogs = (wevtutil el)
+function Clean-CleanMgr {
+    #sudo cleanmgr.exe /sagerun:2504
+    Start-Process "sudo" -ArgumentList "cleanmgr.exe /sagerun:2504" -Wait
+	#timeout 150
 }
 
-# Proceed to clear events logs
-$EventLogs | Foreach-Object -Begin {
-    $i = 0
-    $act = "Clearing event logs: "
-} -Process {
-    $i = $i+1
-    wevtutil cl "$_"; 
-    Write-Progress -Activity $act -Status "$_" -PercentComplete ($i/$EventLogs.count*100)
-} -End {
-    if ($EventLogs.count -gt 0) {
-        $out = $EventLogs.count.ToString() + " Event logs clearred"
-    } Else {
-        $out = "Clearing event logs skipped"
+function Clean-FilesAndEventLogs {
+    param($UserProfile)
+
+    $SysTempFolder      = [Environment]::ExpandEnvironmentVariables('%temp%\*')
+    $UserTempFolder     = "$UserProfile\AppData\Local\Temp\*"
+    $UserRDPCacheFolder = "$UserProfile\AppData\Local\Microsoft\Terminal Server Client\Cache\*"
+    $UserThumbnailCache = "$UserProfile\AppData\Local\Microsoft\Windows\Explorer\*"
+    $UserBrowserCache   = "$UserProfile\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\Cache\Cache_Data"
+
+    sdelete -s -r $UserRDPCacheFolder
+    sdelete -s -r $SysTempFolder
+    sdelete -s -r $UserTempFolder
+    sdelete -s -r $UserThumbnailCache
+    sdelete -s -r $UserBrowserCache
+
+    if ($EnableEventLogsChoice) {
+        $Choices = [System.Management.Automation.Host.ChoiceDescription[]] @("&All","&Minimal","&Cancel")
+        $Choice = $host.UI.PromptForChoice("", "Clear Event Logs?", $Choices, 0)
+        switch ($Choice) {
+            0 { $EventLogs = wevtutil el }
+            1 { $EventLogs = @("Application","Security","Setup","System") }
+            2 { $EventLogs = @() }
+        }
+    } else {
+        $EventLogs = wevtutil el
     }
-    Write-Progress -Activity $act -Status $out -Completed
+
+    $EventLogs | ForEach-Object -Begin {
+        $i = 0; $act = "Clearing event logs..."
+    } -Process {
+        $i++
+        wevtutil cl "$_"
+        Write-Progress -Activity $act -Status "$_" -PercentComplete ($i/$EventLogs.Count*100)
+    } -End {
+        Write-Progress -Activity $act -Completed -Status "Done ($($EventLogs.Count))"
+    }
 }
 
-# end
-timeout 10
+function Clean-FreeSpace {
+    $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+    foreach ($d in $drives) {
+        sdelete -z $d
+    }
+}
+
+function Run-All {
+    # 1) Disk cleanup (user)
+    Clean-CleanMgr
+
+    # 2) Elevate as SYSTEM for the other tasks
+    Run-AsSystem $UserProfile "all"
+}
+
+
+###############################
+# ENTRY POINT
+###############################
+
+# First run: show the menu
+if ($null -eq $action) {
+
+    $UserProfile = [Environment]::ExpandEnvironmentVariables('%userprofile%')
+
+    Clear-Host
+    Write-Host "===== CLEANUP TOOL ====="
+    Write-Host "1) Disk Cleanup"
+    Write-Host "2) Folders and EventLogs Cleanup"
+    Write-Host "3) Free space Cleanup"
+    Write-Host "4) All"
+    Write-Host "5) Esci"
+    Write-Host ""
+
+    $choice = Read-Host "Seleziona un'opzione"
+	switch ($choice) {
+        "1" { Clean-CleanMgr; exit }
+		"2" { Run-AsSystem $UserProfile "cleanfiles" }
+		"3" { Run-AsSystem $UserProfile "freespace" }
+		"4" { Run-All }
+		default { return }
+	}
+
+}
+
+if ($action -eq "system") {
+
+    $UserProfile = $UserProfile
+    $Task = $args[0]
+
+    switch ($Task) {
+        "cleanfiles" { Clean-FilesAndEventLogs -UserProfile $UserProfile }
+        "freespace"  { Clean-FreeSpace }
+        "all" {
+            Clean-FilesAndEventLogs -UserProfile $UserProfile
+            Clean-FreeSpace
+        }
+        default { exit }
+    }
+
+    timeout 10
+    exit
+}

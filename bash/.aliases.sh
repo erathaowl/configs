@@ -1,6 +1,12 @@
 # Set case insensitive shell completion
 if [ -n "$BASH_VERSION" ]; then
   bind "set completion-ignore-case on";
+  alias fcp='HISTFILE=/dev/null bash -i'
+fi
+
+# New no-history shell in ZSH
+if [ -n "$ZSH_VERSION" ]; then
+    alias fcp="fc -p"
 fi
 
 alias nano='nano -c'
@@ -11,6 +17,10 @@ alias ip="ip -c"
 
 # Copy file(s) showing progress info
 alias rcp="rsync -ah --info=progress2"
+
+# Human readable filesizes
+alias df="df -h"
+alias du="du -h"
 
 # Some usefull network related aliases
 alias iplist="ip -br -c addr show"

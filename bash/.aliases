@@ -9,6 +9,9 @@ alias untar="tar -xvf"
 alias cd..="cd .."
 alias ip="ip -c"
 
+# Copy file(s) showing progress info
+alias rcp="rsync -ah --info=progress2"
+
 # Some usefull network related aliases
 alias iplist="ip -br -c addr show"
 alias maclist="ip -o link | awk '$2 != "lo:" {print $2, $17}'"
@@ -60,3 +63,19 @@ alias md5="md5sum"
 alias sha512="sha512sum"
 alias sha256="sha256sum"
 
+# Copy file(s) showing progress info
+alias rcp="rsync -ah --info=progress2"
+
+# Check if veracrypt is installed and add shortcuts
+if command -v veracrypt 2>&1 >/dev/null
+then
+    alias vu="veracrypt -u"
+fi
+
+# Check if uv is installed and add shortcuts
+if command -v uv 2>&1 >/dev/null
+then
+    alias uvr="uv run"
+    alias uvp="uv run python"
+    alias uvm="uv run python manage.py"
+fi

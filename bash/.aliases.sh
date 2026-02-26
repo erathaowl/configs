@@ -90,3 +90,6 @@ then
     alias uvp="uv run python"
     alias uvm="uv run python manage.py"
 fi
+
+# apt update shortcut
+alias supdate='sudo apt update && apt list --upgradable && read -t 10 -p "Press [ENTER] or wait 10 seconds..."; sudo NEEDRESTART_MODE=a apt dist-upgrade -y && sudo apt autoremove -y'

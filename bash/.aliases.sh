@@ -45,7 +45,8 @@ if command -v eza 2>&1 >/dev/null
 then
     #alias eza="eza --icons"
     alias ls="eza --group-directories-first"
-    alias ll="eza --group-directories-first --long --all --octal-permissions --no-permissions --group --header --time-style=long-iso"
+    #alias ll="eza --group-directories-first --long --all --octal-permissions --no-permissions --group --header --time-style=long-iso"
+    alias ll="eza --group-directories-first --long --all -a --group --header --time-style=long-iso"
 else
     alias ls="ls --color=auto"
     alias ll="ls -alFh"

@@ -16,7 +16,7 @@ alias cd..="cd .."
 alias ip="ip -c"
 
 # Copy file(s) showing progress info
-alias rcp="rsync -ah --info=progress2"
+alias rcp='rsync -ah --no-owner --no-group --info=progress2'
 
 # Human readable filesizes
 alias df="df -h"

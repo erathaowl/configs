@@ -9,11 +9,14 @@ if [ -n "$ZSH_VERSION" ]; then
     alias fcp="fc -p"
 fi
 
+# Space added in order to allow alias expansion
+alias sudo='sudo '
+
+# mixed usefull things
 alias nano='nano -c'
 alias gistory="history | grep -i $1"
 alias untar="tar -xvf"
 alias cd..="cd .."
-alias ip="ip -c"
 
 # Copy file(s) showing progress info
 alias rcp='rsync -ah --no-owner --no-group --info=progress2'
@@ -23,6 +26,7 @@ alias df="df -h"
 alias du="du -h"
 
 # Some usefull network related aliases
+alias ip="ip -c"
 alias iplist="ip -br -c addr show"
 alias maclist="ip -o link | awk '$2 != "lo:" {print $2, $17}'"
 alias routelist="ip -c r"
@@ -92,10 +96,12 @@ then
     alias uvm="uv run python manage.py"
 fi
 
-# Clean durrent folder and sub-folder python cache and compiled files 
+# Recursive clean current folder fronl python cache and compiled files 
 pycclean() {
   find . -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete -delete
 }
 
-# Perform apt update as sudo, list upgradable packages and ask to proceed with upgrade
+# Perform apt update as sudo, 
+#   then list upgradable packages 
+#   and ask to proceed with upgrade
 alias supdate='sudo apt update && apt list --upgradable && read -t 10 -p "Press [ENTER] or wait 10 seconds..."; sudo NEEDRESTART_MODE=a apt dist-upgrade -y && sudo apt autoremove -y && sudo apt clean -y'

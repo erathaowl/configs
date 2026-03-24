@@ -101,6 +101,18 @@ pycclean() {
   find . -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete -delete
 }
 
+# Ipscan via nmap icmp test
+ipscan() {
+    # Check if an argument (IP or subnet) was provided
+    if [ -z "$1" ]; then
+        echo "Error: you must specify a subnet or an IP."
+        echo "Usage: ipscan <192.168.x.x/24>"
+        return 1
+    fi
+    # Execute the command using the provided argument
+    nmap -sn -PE "$1" -oG - | awk '/Up$/{print $2}'
+}
+
 # Perform apt update as sudo, 
 #   then list upgradable packages 
 #   and ask to proceed with upgrade

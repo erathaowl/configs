@@ -50,7 +50,23 @@ apt update && apt install -y \
   tmux \
   nano \
   ncdu \
+  fdfind \
+  fzf \
   renameutils
+
+# Install fd shortcut
+if [ -e "$(dirname "$(which fdfind)")/fd" ]; then
+    echo "Error: file /usr/bin/fd already exist." >&2
+else
+    ln -s "$(which fdfind)" "$(dirname "$(which fdfind)")/fd"
+fi
+
+# Install bat shortcut
+if [ -e "$(dirname "$(which batcat)")/bat" ]; then
+    echo "Error: file /usr/bin/bat already exist." >&2
+else
+    ln -s "$(which batcat)" "$(dirname "$(which batcat)")/bat"
+fi
 
 # Install eza
 if confirm_install "eza"; then

@@ -19,7 +19,7 @@ alias untar="tar -xvf"
 alias cd..="cd .."
 
 # Copy file(s) showing progress info
-alias rcp='rsync -ahIU --no-owner --no-group --info=progress2'
+alias rcp='rsync -ahvIU --no-owner --no-group --info=progress2'
 
 # Human readable filesizes
 alias df="df -h"

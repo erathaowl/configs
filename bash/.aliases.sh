@@ -79,9 +79,6 @@ alias md5="md5sum"
 alias sha512="sha512sum"
 alias sha256="sha256sum"
 
-# Copy file(s) showing progress info
-alias rcp="rsync -ah --info=progress2"
-
 # Check if veracrypt is installed and add shortcuts
 if command -v veracrypt 2>&1 >/dev/null
 then

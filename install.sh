@@ -50,7 +50,7 @@ apt update && apt install -y \
   tmux \
   nano \
   ncdu \
-  fdfind \
+  fd-find \
   fzf \
   renameutils
 

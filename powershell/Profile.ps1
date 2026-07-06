@@ -2,13 +2,12 @@ Import-Module "gsudoModule"
 # Set-Alias Prompt gsudoPrompt
 
 function Invoke-Starship-TransientFunction {
-    # &starship module time
     &starship module character
 }
 
 Invoke-Expression (&starship init powershell)
 
-Enable-TransientPrompt
+#Enable-TransientPrompt
 
 ###############################################################
 ###############################################################

@@ -35,6 +35,7 @@ alias routelist="ip -c r"
 alias ipa=iplist
 alias ipm=maclist
 alias ipr=routelist
+alias ipp="ss -tulpn"
 
 # Create parent directory on demand if needed
 alias mksdir='mkdir -pv'

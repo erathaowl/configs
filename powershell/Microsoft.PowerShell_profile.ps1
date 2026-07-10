@@ -40,3 +40,7 @@ function python {
 # Alias python3 (latest) + python3XX (specific)
 Set-Alias -Name python3 -Value python -Scope Global
 3..20 | ForEach-Object { Set-Alias -Name "python3$_" -Value python -Scope Global }
+
+function ll {
+    & 'ls.exe' --color=auto -AFhl @args
+}

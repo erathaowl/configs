@@ -36,6 +36,10 @@ RUN set -eu; \
 #     > /usr/local/bin/ipar \
 #  && chmod +x /usr/local/bin/ipar
 
+# Copy entrypoint
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 WORKDIR /workspace
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["pi"]

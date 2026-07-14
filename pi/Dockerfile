@@ -37,4 +37,5 @@ RUN set -eu; \
 #  && chmod +x /usr/local/bin/ipar
 
 WORKDIR /workspace
-ENTRYPOINT ["pi"]
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["pi"]

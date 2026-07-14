@@ -9,4 +9,4 @@ if [ ! -f /root/.pi/agent/lmstudio.json ]; then
 EOF
 fi
 
-exec "$@"
+exec pi "$@"

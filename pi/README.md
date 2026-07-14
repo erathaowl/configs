@@ -29,7 +29,12 @@ If you're on Windows and want a quick way to launch the sandbox without typing t
 notepad $PROFILE
 
 # Add this line:
-Set-Alias -Name pi-sandbox -Value "docker run --rm -it -v `"${PWD}`:/workspace" -v pi-agent-home:/root/.pi/agent pi-sandbox"
+function pi-sandbox {
+    docker run --rm -it `
+        -v "${PWD}:/workspace" `
+        -v "pi-agent-home:/root/.pi/agent" `
+        pi-sandbox @args
+}
 ```
 
 Save the file and restart PowerShell (or run `. $PROFILE` to reload it). Now you can simply type:

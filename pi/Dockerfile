@@ -42,4 +42,3 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /workspace
 ENTRYPOINT ["entrypoint.sh"]
-CMD ["pi"]

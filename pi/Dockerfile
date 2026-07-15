@@ -1,10 +1,13 @@
 FROM node:24-bookworm-slim
 
-#Install prerequisites
+# Install prerequisites
 RUN apt-get update \
   && apt-get install -y --no-install-recommends bash ca-certificates git ripgrep curl \
      # nmap iproute2 \
   && rm -rf /var/lib/apt/lists/*
+
+# Install UVicorn
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install pi coding agent globally
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
@@ -22,19 +25,6 @@ RUN set -eu; \
       printf '========== Installed: %s ==========\n\n' "$module"; \
     done < /tmp/modules.pi; \
     rm -f /tmp/modules.pi
-
-# Add some usefull network scripts
-# RUN printf '#!/bin/sh\nip -br address\n' \
-#     > /usr/local/bin/ipa \
-#  && chmod +x /usr/local/bin/ipa
-
-# RUN printf '#!/bin/sh\nip -br route\n' \
-#    > /usr/local/bin/ipr \
-# && chmod +x /usr/local/bin/ipr
-
-# RUN printf '#!/bin/sh\nip -br address\necho\nip -br route\n' \
-#     > /usr/local/bin/ipar \
-#  && chmod +x /usr/local/bin/ipar
 
 # Copy entrypoint
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh

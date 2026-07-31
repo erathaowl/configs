@@ -1,21 +1,9 @@
 $SOURCE = $PWD
 
-Set-Location $PSHOME
-#if exists, delete the existing hard link
-if (Test-Path -Path Profile.ps1) {
-    Write-Host "Removing existing hard link: Profile.ps1"
-    Remove-Item -Path Profile.ps1
-}
 Write-Host "Creating hard link: Profile.ps1"
-New-Item -ItemType HardLink -Name Profile.ps1 -Value $SOURCE\Profile.ps1
+Start-Process (Get-Process -Id $PID).Path -Verb RunAs -ArgumentList '-Command', "New-Item -ItemType HardLink -Path '$PSHOME\Profile.ps1'-Target '.\Profile.ps1' -Force"
 
-Set-Location $HOME\Documents\PowerShell
-#if exists, delete the existing hard link
-if (Test-Path -Path Microsoft.PowerShell_profile.ps1) {
-    Write-Host "Removing existing hard link: Microsoft.PowerShell_profile.ps1"
-    Remove-Item -Path Microsoft.PowerShell_profile.ps1
-}
-Write-Host "Creating hard link: Microsoft.PowerShell_profile.ps1"
-New-Item -ItemType HardLink -Name Microsoft.PowerShell_profile.ps1 -Value $SOURCE\Microsoft.PowerShell_profile.ps1
+Write-Host "Creating hard link: $HOME\Documents\PowerShell\Microsoft.PowerShell_profile.ps1"
+New-Item -ItemType HardLink -Path $HOME\Documents\PowerShell\Microsoft.PowerShell_profile.ps1 -Target '.\Profile.ps1' -Force
 
 Read-Host "Press any key to continue..."

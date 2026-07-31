@@ -1,6 +1,9 @@
-# Create a symlink to:
+# Create an hartlink to:
 #   %ProgramFiles%\Powershell\7\Profile.ps1
 #   %USERPROFILE%\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
+#
+# Start-Process (Get-Process -Id $PID).Path -Verb RunAs -ArgumentList '-Command', "New-Item -ItemType HardLink -Path '$PSHOME\Profile.ps1'-Target '.\Profile.ps1' -Force"
+# New-Item -ItemType HardLink -Path $HOME\Documents\PowerShell\Microsoft.PowerShell_profile.ps1 -Target '.\Profile.ps1' -Force
 #
 Import-Module "gsudoModule"
 

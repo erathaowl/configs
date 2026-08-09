@@ -116,3 +116,22 @@ ipscan() {
 #   then list upgradable packages 
 #   and ask to proceed with upgrade
 alias supdate='sudo apt update && apt list --upgradable && read -t 10 -p "Press [ENTER] or wait 10 seconds..."; sudo NEEDRESTART_MODE=a apt dist-upgrade -y && sudo apt autoremove -y && sudo apt clean -y'
+
+# pi-agent sandboxed via docker
+pi-sandbox() {
+    docker run --rm -it \
+        -v "${PWD}:/workspace" \
+        -v "pi-agent-home:/root/.pi/agent" \
+        pi-sandbox "$@"
+}
+
+# minimal docker ps colored
+docker-ps() {
+    docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}" \
+    | awk '
+        NR == 1 { print; next }
+        /Up /     { printf "\033[32m%s\033[0m\n", $0; next }
+        /Exited / { printf "\033[31m%s\033[0m\n", $0; next }
+        { print }
+    '
+}

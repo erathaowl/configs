@@ -229,3 +229,92 @@ $errors
 ```
 
 No output from `$errors` means the parser found no PowerShell syntax errors.
+
+# Addendum: Residual Data Exposure
+
+The cleanup is intentionally selective. It reduces ordinary local activity history without trying to erase every forensic, recovery, security, or remote record. No in-place cleanup can prove that every copy is gone, especially on a live system.
+
+## Selection and execution gaps
+
+| Residual surface | Why it can remain | Supported mitigation |
+| --- | --- | --- |
+| Unchecked checklist activities | The TUI starts with every activity unchecked. | Review every row before execution. Use `A` only after accepting the consequences of every activity. |
+| Locked or access-denied files | Normal deletion is best-effort, and some individual errors are suppressed. Explorer and Windows services can keep databases open. | Close applications, complete a Windows restart, and rerun only the relevant activities. Review warnings rather than assuming completion. |
+| Running browser profiles | The script deliberately skips an entire browser when its process is running. Background mode and Edge Startup Boost can keep processes alive. | Close the browser, disable its background/startup mode temporarily, confirm its processes have exited, and rerun that browser row. |
+| Interrupted cleanup | UAC cancellation, shutdown, missing tools, policy restrictions, or loss of power can leave a partial result. | Resolve the reported problem and rerun the selected activities. Do not interrupt SDelete or Disk Cleanup. |
+| Event logs | Event cleanup has a separate prompt that defaults to cancellation. Individual protected logs may reject clearing, and forwarded copies are unaffected. | Clear only when permitted by the machine's audit policy. Manage retained or forwarded logs through the authorized logging system, not by deleting its files. |
+| Disk Cleanup categories | `cleanmgr.exe` removes only categories enabled in profile `2504`. | Review the profile with `cleanmgr.exe /sageset:2504`. Preserve rollback, driver, or installation data that may still be needed. |
+| Optional Jump Lists | Disabled by default because recent and pinned destinations share the same databases. | Enable `$script:EnableJumpListCleanup` only if losing pinned Jump List destinations is acceptable. |
+| Optional ShellBags | Disabled by default because folder history and Explorer view preferences share the same keys. | Enable `$script:EnableShellBagCleanup` only if resetting folder views and layouts is acceptable. |
+| Nonstandard profiles | Only configured standard browser locations and the validated portable Brave location are processed. | Add a reviewed profile root to the configuration or use that application's built-in privacy controls. Never add a broad drive or profile root. |
+
+## Windows data intentionally retained
+
+| Residual surface | Information it may expose | Safe way to address it |
+| --- | --- | --- |
+| Volume shadow copies and restore points | Earlier versions of deleted files, registry hives, browser databases, and user folders. | Keep them for recovery. If an approved retention policy requires removal, manage them separately through **System Protection** and the backup product after verifying an external backup. Do not make shadow-copy deletion part of routine cleanup. |
+| File History, backup images, cloud backups, and Windows.old | Historical user files and application state. | Use each backup system's supported retention controls. For decommissioning, verify required records, expire backups according to policy, and then use Windows reset or device-erasure procedures. |
+| Windows Search index | File names, content extracts, messages, and metadata from indexed locations. | Remove sensitive indexing locations or rebuild the index through **Indexing Options** after source data is removed. Rebuilding temporarily increases CPU and disk activity. |
+| Notification and Connected Devices databases | Notification text, application identifiers, and cross-device activity. | Use Windows notification, clipboard, activity-history, and device-sharing settings where available. The script does not delete their live databases. |
+| WebCache and broad Windows cache databases | Legacy web, account, and component state. | Use the relevant Windows or application privacy UI. Direct live-database deletion is intentionally avoided. |
+| Prefetch | Names and launch patterns for executed applications. | Leave it intact on an active installation; Windows uses it for performance. For device disposal, use reset or whole-device sanitization instead of deleting Prefetch manually. |
+| Amcache, AppCompat/Shimcache, SRUM, BAM/DAM, Reliability Monitor, Defender, and diagnostic telemetry | Application execution, resource use, compatibility, security, and reliability history. | Retain these security and diagnostic records. Apply organizational retention policy or use supported Windows reset/decommissioning processes; do not edit their databases directly. |
+| NTFS metadata and journals | File names, timestamps, directory entries, change records, and remnants in `$MFT`, `$LogFile`, and the USN journal. | There is no safe selective in-place purge. For disposal or reassignment, use BitLocker-backed crypto-erasure, Windows **Reset this PC** with drive cleaning, or an approved whole-device sanitization process. |
+| Registry transaction logs and hive copies | Older values from MRU and application-history keys. | Do not delete live transaction logs. Recovery copies disappear only through normal retention, reset, or whole-device sanitization. |
+| Page file, hibernation file, crash state, and RAM | Fragments of paths, documents, browser content, credentials, and process memory. | Restart Windows after cleanup. Use supported page-file, hibernation, and shutdown policies only when their performance and feature impact is understood. Do not delete these files directly. |
+| Wi-Fi profiles and network-location history | SSIDs, network names, connection properties, and remembered credentials. | Use **Settings > Network & internet** to forget networks that are no longer required. This can remove automatic connectivity and must not be automated indiscriminately. |
+| Other user profiles | History and files belonging to other local or domain users. | Sign in as each authorized user and run profile-specific cleanup, or remove obsolete accounts through Windows account-management tools after backing up required data. |
+
+## Browser and application data intentionally retained
+
+- Firefox `places.sqlite` remains because it combines browsing history and bookmarks. Use Firefox **Clear Recent History** to clear history safely, then close Firefox before running the script.
+- Bookmarks, saved passwords, extensions, permissions, custom shortcuts, HSTS state, and some site preferences remain. They can reveal sites or services used. Review them through each browser's built-in bookmark, password, extension, site-data, and profile-management pages.
+- Browser synchronization can restore locally removed history or site data. Clear synchronized data through the browser account's privacy dashboard and adjust synchronization before rerunning local cleanup.
+- Browser profiles outside the configured roots, other browsers, PWAs, and application-embedded web views are not covered automatically. Use their own clear-data or profile-removal controls.
+- Office, Teams, Outlook, Adobe applications, media players, development tools, and other applications may keep internal recent-item lists, autosave copies, local databases, or server-side history beyond the registry keys covered here. Use each application's supported privacy and retention controls.
+- WSL, Git Bash, Python, Node.js, database clients, remote-shell tools, and custom PowerShell hosts can maintain separate history files. Review them individually instead of adding broad home-directory deletion patterns.
+
+## Network, cloud, and external records
+
+Local DNS cache removal does not affect records held by a router, DNS or DoH provider, VPN, proxy, firewall, remote server, ISP, identity provider, Microsoft account, browser account, enterprise SIEM, EDR product, or event collector. Account sign-in, file access, web requests, and remote-session activity may therefore remain outside the computer.
+
+Use the applicable account privacy dashboard, service retention setting, router administration process, or organizational data-retention request. A local administrator generally cannot and should not attempt to erase independently controlled audit records.
+
+Mapped drives, NAS devices, removable media, synced folders, email attachments, exported reports, and files copied to another volume are separate copies. Address them through the owning storage or synchronization system. The selected user's Recycle Bin cleanup does not clear another user's bin or every removable/network volume.
+
+## Storage recovery limits
+
+- SSD deletion and TRIM are asynchronous and controlled by firmware. Wear leveling, spare blocks, controller caches, snapshots, and storage virtualization can retain data beyond the operating system's view.
+- HDD SDelete processing is stronger for selected files, but filesystem metadata and copies elsewhere can remain.
+- `sdelete -c 10` deliberately leaves ten percent free for live-system safety. Previously deleted, unrelated data in that reserved free space may not be overwritten.
+- Unknown media types use normal deletion for selected files and skip free-space processing.
+- Deduplication, Storage Spaces, virtual disks, thin provisioning, RAID, SAN snapshots, and hardware backup appliances can preserve blocks outside the selected logical volume.
+
+Do not reduce the free-space reserve to zero on a live Windows installation merely to improve erasure coverage. For disposal, reassignment, or a requirement for high-assurance sanitization, stop using in-place selective cleanup and follow an approved offline whole-device erase or cryptographic-erasure procedure.
+
+## Traces created by running this script
+
+The cleanup operation itself can generate new records:
+
+- PowerShell, UAC, CleanMgr, PsExec, SDelete, service creation, process execution, and volume-optimization activity can appear in Prefetch, Windows diagnostics, security products, event forwarding, or enterprise monitoring.
+- PsExec can create the temporary `PSEXESVC` service and related service-control events. Sysinternals EULA acceptance also leaves registry state.
+- The command used to launch the script can remain in the launching shell's in-memory or persisted history. A shell that remains open may rewrite its history after the script has deleted the history file.
+- The script files, shortcut used to launch them, console scrollback, redirected output, terminal state, download history, filesystem timestamps, and repository history can show that the tool exists or ran.
+- Clearing activity before later SYSTEM operations means those later operations can create fresh execution records after the selected MRU cleanup has completed.
+- Remote event collectors and security products may receive records before local event-log cleanup occurs.
+
+These records are intentionally not recursively erased. Keep the script in an appropriately protected administrative location, avoid redirecting output to an unprotected file, close the launching terminal after completion, and follow normal log-retention policy. If the machine is being transferred or retired, use Windows reset or approved device sanitization rather than repeatedly running the cleanup tool.
+
+## Recommended privacy-cleanup sequence
+
+1. Verify backups and decide which restore points, histories, pinned items, and account data must be retained.
+2. Close browsers and other applications; disable browser background mode temporarily when necessary.
+3. Clear Firefox history and any unsupported application's history through its own UI.
+4. Pause synchronization only when doing so will not cause data loss, and address cloud-side history through the account's privacy controls.
+5. Run the checklist as the intended user. Select only understood activities; event logs require separate authorization and confirmation.
+6. Run free-space cleanup last and only while the machine is idle. Keep the safety reserve on a live installation.
+7. Restart Windows, check for warnings or skipped browsers, and rerun only affected categories if files were previously locked.
+8. Review Windows Search, notification/activity, network, backup, and browser-account settings using their supported interfaces.
+9. For disposal or reassignment, stop here and use an approved full reset, crypto-erasure, or whole-device sanitization workflow.
+
+This addendum describes known residual surfaces, not a guarantee that every third-party, firmware, cloud, enterprise, or future Windows artifact has been identified.

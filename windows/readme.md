@@ -15,7 +15,7 @@ This is a privacy and maintenance tool, not a guarantee of forensic erasure. SSD
 - An official, Microsoft-signed [Sysinternals SDelete](https://learn.microsoft.com/sysinternals/downloads/sdelete) available in `PATH` as `sdelete.exe`
 - The built-in `cleanmgr.exe`, storage, DNS, and volume-management commands
 
-PowerShell 7 is recommended because the elevation code uses the modern `ProcessStartInfo.ArgumentList` API.
+PowerShell 7 is required because the elevation code uses the modern `ProcessStartInfo.ArgumentList` API.
 
 ## Preparation
 
@@ -47,7 +47,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1
 
 Approve the UAC prompt with the same Windows account that launched the script. The original profile path is retained across elevation, while current-user registry cleanup operates on the elevated account's `HKCU` hive.
 
-The command-line `Action`, `UserProfile`, and `Task` parameters are internal relaunch parameters. Normal use should go through the checklist.
+Normal use should go through the checklist. For automation or one-at-a-time execution, the public `-Action run` mode accepts one or more activity IDs through `-Task`. The `system` and `runassystem` action values remain internal relaunch modes.
 
 ## Interactive checklist
 
@@ -80,6 +80,238 @@ The checklist exposes these activities independently:
 - Fixed-drive free-space cleanup
 
 Selecting event logs still opens its separate all/minimal/cancel confirmation. Browser selections are skipped individually when the corresponding browser is running.
+
+## Running individual activities from the command line
+
+Use the following form from the directory containing `cleanup.ps1`:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "<activity-id>"
+```
+
+The script captures the current profile, requests UAC elevation, validates the activity ID, and uses the same execution and safety controls as the checklist. To target an explicitly reviewed profile, append:
+
+```powershell
+-UserProfile "C:\Users\ExampleUser"
+```
+
+The profile must exist and be registered with Windows. Current-user registry cleanup is skipped when the elevated `HKCU` does not belong to that profile.
+
+Multiple activities can be supplied as one comma-separated value:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "temporaryfiles,diagnosticfiles,recyclebin"
+```
+
+Activity IDs are case-insensitive. Unknown IDs stop execution before cleanup begins.
+
+### Command-line parameter reference
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `-Action run` | Yes for direct execution | Selects the supported command-line execution path. Omitting `-Action` opens the checklist. |
+| `-Task` | Yes with `-Action run` | One activity ID or a quoted comma-separated list of IDs. Do not use the internal `system`, `runassystem`, `all`, or `cleanfiles` values. |
+| `-UserProfile` | No | Target profile path. Defaults to the profile that starts the script and is preserved through UAC/SYSTEM relaunches. |
+
+The direct mode is still interactive where safety requires it: UAC is displayed, event-log cleanup retains its second confirmation, and external-tool validation errors stop execution.
+
+## Detailed activity reference
+
+### `diskcleanup` — Windows Disk Cleanup profile
+
+**What it does:** Runs `cleanmgr.exe /sagerun:2504` synchronously from the trusted Windows system directory.
+
+**Scope:** Categories previously selected with `cleanmgr.exe /sageset:2504`. Depending on that configuration, Windows may remove update packages, setup files, delivery-optimization data, temporary installation files, thumbnails, and other managed categories.
+
+**Important effects:** Some selections can remove update rollback material, previous installations, or driver packages. The script does not override the saved category choices.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "diskcleanup"
+```
+
+### `useractivity` — Registry MRUs and current clipboard
+
+**What it does:** Removes configured current-user MRU keys for Run, search, Explorer, common dialogs, Remote Desktop, Office, Paint, Windows Media Player, application compatibility, recent applications, and mapped or mounted locations. It also replaces the current clipboard content with an empty string.
+
+**Scope:** Only the elevated process's `HKCU`, and only when it matches the captured target profile. Optional Jump List and ShellBag behavior is controlled separately by configuration.
+
+**Important effects:** Explorer recommendations, application recent lists, mapped-location history, and compatibility-history hints are reset. Pinned Start and taskbar items are preserved. An open application can write an MRU value again when it exits.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "useractivity"
+```
+
+### `temporaryfiles` — Temporary directories
+
+**What it does:** Removes content from the SYSTEM temporary directory, `Windows\Temp`, and the selected user's `AppData\Local\Temp` directory.
+
+**Scope:** Contents are deleted; the parent temporary directories remain. Locked files are skipped on a best-effort basis.
+
+**Important effects:** Unsaved installers, application recovery files, or work files incorrectly stored in a temporary directory can be lost. Close applications first.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "temporaryfiles"
+```
+
+### `diagnosticfiles` — Crash dumps and error reports
+
+**What it does:** Removes Windows minidumps, `MEMORY.DMP`, system Windows Error Reporting archives/queues/temp files, per-user WER files, and per-user application crash dumps.
+
+**Scope:** Diagnostic artifacts only; Windows logging and protected reliability databases are not directly edited.
+
+**Important effects:** Removed reports cannot be used for later crash debugging or vendor support. Active or protected reports can remain locked.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "diagnosticfiles"
+```
+
+### `windowscaches` — Windows and profile caches
+
+**What it does:** Clears Direct3D shader cache, Remote Desktop bitmap cache, clipboard-history files, Explorer icon/thumbnail cache, and legacy Internet cache files.
+
+**Scope:** Targeted cache locations only. Prefetch, WebCache, notification databases, Connected Devices databases, Windows Search, and broad component caches are intentionally excluded.
+
+**Important effects:** Icons, thumbnails, shaders, and RDP bitmaps are regenerated. First launches or first folder views can be slower. Pinned clipboard-history items are removed when their files are available.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "windowscaches"
+```
+
+### `shellhistory` — PowerShell and recent-item history
+
+**What it does:** Removes PSReadLine `*_history.txt` files and root-level `.lnk`/`.url` entries from the Windows Recent directory. When configured, it also removes Automatic and Custom Jump List databases.
+
+**Scope:** Windows PowerShell/PowerShell PSReadLine and Windows recent-item targets. WSL, Git Bash, Python, Node.js, database clients, and third-party shell histories are not included.
+
+**Important effects:** An already-open shell can write its in-memory history back after cleanup. Jump List databases are disabled by default because they include pinned destinations.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "shellhistory"
+```
+
+### `chromedata` — Google Chrome activity and site data
+
+**What it does:** Across discovered Chrome profiles, removes caches, browsing/download history databases, cookies, favicons, site storage, IndexedDB, service workers, sessions, top sites, visited links, prediction data, Privacy Sandbox state, DIPS/bounce-tracking state, interest groups, media history, Shared Storage, Trust Tokens, and site-characteristics data.
+
+**Scope:** Standard Chrome profiles under the selected user's local application data. The entire activity is skipped if any `chrome` process is running.
+
+**Important effects:** Websites are signed out, offline data is removed, and prior tabs cannot be restored. Bookmarks, saved passwords, extensions, custom shortcuts, HSTS state, and browser preferences are preserved. Sync can restore data from the account.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "chromedata"
+```
+
+### `edgedata` — Microsoft Edge activity and site data
+
+**What it does:** Applies the Chromium cleanup described for `chromedata` to every discovered Microsoft Edge profile.
+
+**Scope:** Standard Edge profiles under the selected user's local application data. The entire activity is skipped when an `msedge` process is running, including Startup Boost or background processes.
+
+**Important effects:** Site sessions and offline web applications are reset. Microsoft-account synchronization, Collections, bookmarks, saved passwords, extensions, HSTS state, and browser preferences are not directly removed.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "edgedata"
+```
+
+### `bravedata` — Brave activity and site data
+
+**What it does:** Applies the Chromium cleanup to standard Brave profiles and, when validated by its `Preferences` marker, the configured portable Brave profile.
+
+**Scope:** The selected user's standard Brave data plus `$script:PortableBraveProfileRoot`. The entire activity is skipped when a `brave` process is running.
+
+**Important effects:** Site sessions, local site storage, and tab recovery are removed. Bookmarks, saved passwords, extensions, custom shortcuts, HSTS state, and preferences remain.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "bravedata"
+```
+
+### `firefoxdata` — Mozilla Firefox activity and site data
+
+**What it does:** Removes Firefox disk/startup caches, thumbnails, cookies, favicons, form history, site-storage indexes and default/temporary storage, protection statistics, bounce-tracking data, alternative-service cache, device-enumeration salts, and session-restore files.
+
+**Scope:** Standard local and roaming Firefox profiles for the selected user. The entire activity is skipped when a `firefox` process is running.
+
+**Important effects:** Websites are signed out, form history is removed, offline site data is reset, and prior sessions cannot be restored. `places.sqlite` is preserved because it combines history and bookmarks; use Firefox **Clear Recent History** for that database.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "firefoxdata"
+```
+
+### `recyclebin` — Selected user's Recycle Bin
+
+**What it does:** Resolves the selected profile to its Windows SID and removes that SID's Recycle Bin content from every fixed volume.
+
+**Scope:** Only the selected SID. Other users' Recycle Bins and most removable or network storage are not processed.
+
+**Important effects:** Recycled files can no longer be restored through Explorer. HDD targets use validated SDelete unless a reparse point forces safer normal deletion.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "recyclebin"
+```
+
+### `networkactivity` — DNS resolver cache
+
+**What it does:** Calls `Clear-DnsClientCache` to remove the machine-wide Windows DNS client cache.
+
+**Scope:** Local resolver entries only. Router, DNS/DoH provider, VPN, proxy, firewall, browser-internal, remote-server, and enterprise records remain.
+
+**Important effects:** The next connection to a hostname requires a fresh lookup. Active network connections are not closed.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "networkactivity"
+```
+
+### `eventlogs` — Windows event logs
+
+**What it does:** Uses the trusted `System32\wevtutil.exe` to enumerate and clear the chosen Windows logs.
+
+**Scope:** With the default configuration, a second prompt offers **All**, **Minimal**, or **Cancel**, and defaults to cancellation. Minimal means `Application`, `Security`, `Setup`, and `System`. Setting `$script:EnableEventLogsChoice` to `$false` clears all enumerated logs without that prompt.
+
+**Important effects:** Local diagnostic, operational, and security audit evidence is destroyed. Protected logs can reject clearing, while forwarded or remote copies remain. Use only when authorized by the applicable audit and retention policy.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "eventlogs"
+```
+
+### `freespace` — Fixed-volume deleted-data processing
+
+**What it does:** Enumerates fixed volumes, detects their backing media, runs `Optimize-Volume -ReTrim` for SSDs, and runs validated `sdelete.exe -c 10` for HDDs.
+
+**Scope:** Every fixed volume with a recognized SSD or HDD media type. Unknown media is skipped. HDD processing reserves ten percent free space for live-system safety.
+
+**Important effects:** This can take a long time and generate heavy disk I/O. TRIM is not guaranteed physical erasure, and the HDD reserve can retain unrelated deleted data. Run while idle and do not interrupt it.
+
+**Run individually:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1 -Action run -Task "freespace"
+```
 
 ## What is cleaned
 

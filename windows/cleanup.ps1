@@ -930,6 +930,12 @@ function Invoke-SelectedActivities {
         [string]$UserProfile
     )
 
+    $validActivities = @($script:CleanupActivities | ForEach-Object { $_.Id })
+    $unknownActivities = @($Activities | Where-Object { $validActivities -notcontains $_ })
+    if ($unknownActivities.Count -gt 0) {
+        throw "Unknown cleanup activity ID(s): $($unknownActivities -join ', ')."
+    }
+
     $systemActivities = @()
     foreach ($activity in $Activities) {
         switch ($activity) {
@@ -1012,6 +1018,28 @@ if ([string]::IsNullOrWhiteSpace($Action)) {
     }
 
     Invoke-SelectedActivities -Activities $selectedActivities -UserProfile $UserProfile
+    return
+}
+
+if ($Action -eq "run") {
+    if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+        $UserProfile = [Environment]::ExpandEnvironmentVariables("%userprofile%")
+    }
+    if ([string]::IsNullOrWhiteSpace($Task)) {
+        throw "Action 'run' requires one or more comma-separated activity IDs in -Task."
+    }
+
+    Ensure-Elevated -Action $Action -UserProfile $UserProfile -Task $Task
+    $requestedActivities = @(
+        $Task.Split(",", [System.StringSplitOptions]::RemoveEmptyEntries) |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($requestedActivities.Count -eq 0) {
+        throw "Action 'run' did not receive a valid activity ID."
+    }
+
+    Invoke-SelectedActivities -Activities $requestedActivities -UserProfile $UserProfile
     return
 }
 

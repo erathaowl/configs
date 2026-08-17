@@ -149,6 +149,32 @@ if ($script:EnableShellBagCleanup) {
 }
 $script:DriveInfoCache = @{}
 $script:SysinternalsPathCache = @{}
+$script:FileCleanupActivityIds = @(
+    "temporaryfiles",
+    "diagnosticfiles",
+    "windowscaches",
+    "shellhistory",
+    "chromedata",
+    "edgedata",
+    "bravedata",
+    "firefoxdata"
+)
+$script:CleanupActivities = @(
+    [pscustomobject]@{ Id = "diskcleanup"; Label = "Windows Disk Cleanup profile" }
+    [pscustomobject]@{ Id = "useractivity"; Label = "Registry MRUs and current clipboard" }
+    [pscustomobject]@{ Id = "temporaryfiles"; Label = "Temporary files" }
+    [pscustomobject]@{ Id = "diagnosticfiles"; Label = "Crash dumps and Windows Error Reporting files" }
+    [pscustomobject]@{ Id = "windowscaches"; Label = "Explorer, shader, RDP, clipboard, and Internet caches" }
+    [pscustomobject]@{ Id = "shellhistory"; Label = "PowerShell and recent-item history" }
+    [pscustomobject]@{ Id = "chromedata"; Label = "Google Chrome activity and site data" }
+    [pscustomobject]@{ Id = "edgedata"; Label = "Microsoft Edge activity and site data" }
+    [pscustomobject]@{ Id = "bravedata"; Label = "Brave activity and site data" }
+    [pscustomobject]@{ Id = "firefoxdata"; Label = "Mozilla Firefox activity and site data" }
+    [pscustomobject]@{ Id = "recyclebin"; Label = "Recycle Bin for the selected user" }
+    [pscustomobject]@{ Id = "networkactivity"; Label = "DNS resolver cache" }
+    [pscustomobject]@{ Id = "eventlogs"; Label = "Windows event logs (separate confirmation)" }
+    [pscustomobject]@{ Id = "freespace"; Label = "Deleted-data cleanup on fixed-drive free space" }
+)
 
 ###############################
 # FUNCTIONS
@@ -663,10 +689,47 @@ function Clean-UserActivity {
     }
 }
 
-# Expands configured paths and removes user/system caches, profile history, Recycle Bin data, and DNS records.
+# Maps one configured path template to its selectable file-cleanup activity; returns one activity ID.
+function Get-FileCleanupActivityId {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PathTemplate
+    )
+
+    if ($PathTemplate -like "*\Google\Chrome\*") { return "chromedata" }
+    if ($PathTemplate -like "*\Microsoft\Edge\*") { return "edgedata" }
+    if ($PathTemplate -like "*\BraveSoftware\*" -or $PathTemplate -like "F:\Browsers\Brave\*") { return "bravedata" }
+    if ($PathTemplate -like "*\Mozilla\Firefox\*") { return "firefoxdata" }
+
+    if ($PathTemplate -in @(
+        "%temp%\*",
+        "%windir%\Temp\*",
+        "{UserProfile}\AppData\Local\Temp\*"
+    )) {
+        return "temporaryfiles"
+    }
+
+    if (
+        $PathTemplate -like "*\Minidump\*" -or
+        $PathTemplate -like "*\MEMORY.DMP" -or
+        $PathTemplate -like "*\CrashDumps\*" -or
+        $PathTemplate -like "*\WER\*"
+    ) {
+        return "diagnosticfiles"
+    }
+
+    if ($PathTemplate -like "*\PSReadLine\*" -or $PathTemplate -like "*\Windows\Recent\*") {
+        return "shellhistory"
+    }
+
+    return "windowscaches"
+}
+
+# Removes configured file targets belonging to the supplied activity IDs for one validated user profile.
 function Clean-Files {
     param(
-        [string]$UserProfile
+        [string]$UserProfile,
+        [string[]]$Activities = $script:FileCleanupActivityIds
     )
 
     if ([string]::IsNullOrWhiteSpace($UserProfile)) {
@@ -687,28 +750,33 @@ function Clean-Files {
     }
 
     $cleanupPaths = foreach ($cleanupPathTemplate in $script:CleanupPathTemplates) {
+        $activityId = Get-FileCleanupActivityId -PathTemplate $cleanupPathTemplate
+        if ($Activities -notcontains $activityId) {
+            continue
+        }
+
         $resolvedPath = $cleanupPathTemplate.Replace("{UserProfile}", $UserProfile)
         [Environment]::ExpandEnvironmentVariables($resolvedPath)
     }
 
     # Never remove live browser databases; skip that browser as a unit and let the user rerun after closing it.
     $runningBrowserPrefixes = @()
-    if (Get-Process -Name "chrome" -ErrorAction SilentlyContinue) {
+    if ($Activities -contains "chromedata" -and (Get-Process -Name "chrome" -ErrorAction SilentlyContinue)) {
         Write-Warning "Chrome is running. Chrome cleanup will be skipped."
         $runningBrowserPrefixes += "$UserProfile\AppData\Local\Google\Chrome\"
     }
-    if (Get-Process -Name "msedge" -ErrorAction SilentlyContinue) {
+    if ($Activities -contains "edgedata" -and (Get-Process -Name "msedge" -ErrorAction SilentlyContinue)) {
         Write-Warning "Edge is running. Edge cleanup will be skipped."
         $runningBrowserPrefixes += "$UserProfile\AppData\Local\Microsoft\Edge\"
     }
-    if (Get-Process -Name "brave" -ErrorAction SilentlyContinue) {
+    if ($Activities -contains "bravedata" -and (Get-Process -Name "brave" -ErrorAction SilentlyContinue)) {
         Write-Warning "Brave is running. Brave cleanup will be skipped."
         $runningBrowserPrefixes += @(
             "$UserProfile\AppData\Local\BraveSoftware\Brave-Browser\",
             "$script:PortableBraveProfileRoot\"
         )
     }
-    if (Get-Process -Name "firefox" -ErrorAction SilentlyContinue) {
+    if ($Activities -contains "firefoxdata" -and (Get-Process -Name "firefox" -ErrorAction SilentlyContinue)) {
         Write-Warning "Firefox is running. Firefox cleanup will be skipped."
         $runningBrowserPrefixes += @(
             "$UserProfile\AppData\Local\Mozilla\Firefox\",
@@ -733,9 +801,6 @@ function Clean-Files {
             Remove-PathByDiskType -Path $resolvedCleanupPath
         }
     }
-
-    Clean-RecycleBin -UserProfile $UserProfile
-    Clear-NetworkActivity
 }
 
 # Executes event log cleanup; this thin task entry point returns no data.
@@ -781,56 +846,107 @@ function Clean-FreeSpace {
     }
 }
 
-# Runs Disk Cleanup and current-user cleanup, then delegates all privileged cleanup tasks to SYSTEM.
-function Run-All {
+# Displays an interactive checklist and returns selected activity IDs without performing cleanup.
+function Show-CleanupChecklist {
+    $selected = [bool[]]::new($script:CleanupActivities.Count)
+    $currentIndex = 0
+    $message = ""
+
+    while ($true) {
+        Clear-Host
+        Write-Host "===== WINDOWS CLEANUP =====" -ForegroundColor Cyan
+        Write-Host "Select cleanup activities:" -ForegroundColor White
+        Write-Host ""
+
+        for ($i = 0; $i -lt $script:CleanupActivities.Count; $i++) {
+            $cursor = if ($i -eq $currentIndex) { ">" } else { " " }
+            $checkBox = if ($selected[$i]) { "[x]" } else { "[ ]" }
+            $color = if ($i -eq $currentIndex) { "Yellow" } else { "Gray" }
+            Write-Host "$cursor $checkBox $($script:CleanupActivities[$i].Label)" -ForegroundColor $color
+        }
+
+        Write-Host ""
+        Write-Host "Up/Down Move   Space Toggle   A Check all   U Uncheck all" -ForegroundColor DarkGray
+        Write-Host "Enter Run selected   Esc Exit" -ForegroundColor DarkGray
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            Write-Host ""
+            Write-Host $message -ForegroundColor Yellow
+        }
+
+        $key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        $message = ""
+
+        switch ($key.VirtualKeyCode) {
+            38 {
+                $currentIndex = ($currentIndex - 1 + $script:CleanupActivities.Count) % $script:CleanupActivities.Count
+            }
+            40 {
+                $currentIndex = ($currentIndex + 1) % $script:CleanupActivities.Count
+            }
+            32 {
+                $selected[$currentIndex] = -not $selected[$currentIndex]
+            }
+            65 {
+                for ($i = 0; $i -lt $selected.Count; $i++) {
+                    $selected[$i] = $true
+                }
+            }
+            85 {
+                for ($i = 0; $i -lt $selected.Count; $i++) {
+                    $selected[$i] = $false
+                }
+            }
+            13 {
+                $selectedIds = @(
+                    for ($i = 0; $i -lt $script:CleanupActivities.Count; $i++) {
+                        if ($selected[$i]) {
+                            $script:CleanupActivities[$i].Id
+                        }
+                    }
+                )
+                if ($selectedIds.Count -eq 0) {
+                    $message = "Select at least one activity or press Esc to exit."
+                    continue
+                }
+
+                Clear-Host
+                return $selectedIds
+            }
+            27 {
+                Clear-Host
+                return @()
+            }
+        }
+    }
+}
+
+# Runs selected interactive-user activities and delegates selected privileged activities to SYSTEM.
+function Invoke-SelectedActivities {
     param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Activities,
+
+        [Parameter(Mandatory = $true)]
         [string]$UserProfile
     )
 
-    if ([string]::IsNullOrWhiteSpace($UserProfile)) {
-        $UserProfile = [Environment]::ExpandEnvironmentVariables("%userprofile%")
+    $systemActivities = @()
+    foreach ($activity in $Activities) {
+        switch ($activity) {
+            "diskcleanup" { Clean-CleanMgr }
+            "useractivity" { Clean-UserActivity -UserProfile $UserProfile }
+            default { $systemActivities += $activity }
+        }
     }
 
-    Clean-CleanMgr
-    Clean-UserActivity -UserProfile $UserProfile
-    Run-AsSystem -UserProfile $UserProfile -Task "all"
-}
-
-# Clears the console and displays the interactive menu without returning a value.
-function Show-MainMenu {
-    Clear-Host
-    Write-Host "===== CLEANUP TOOL ====="
-    Write-Host "1) Disk Cleanup"
-    Write-Host "2) User Activity and Files Cleanup"
-    Write-Host "3) Event Logs Cleanup"
-    Write-Host "4) Free space Cleanup"
-    Write-Host "A) All"
-    Write-Host "[any] Exit"
-    Write-Host ""
-}
-
-# Executes the selected menu operation for the supplied profile and exits or delegates when appropriate.
-function Invoke-MenuChoice {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Choice,
-
-        [Parameter(Mandatory = $true)]
-        [string]$UserProfile
-    )
-
-    switch ($Choice.Trim().ToUpperInvariant()) {
-        "1" { Clean-CleanMgr; exit }
-        "2" { Clean-UserActivity -UserProfile $UserProfile; Run-AsSystem -UserProfile $UserProfile -Task "cleanfiles" }
-        "3" { Run-AsSystem -UserProfile $UserProfile -Task "eventlogs" }
-        "4" { Run-AsSystem -UserProfile $UserProfile -Task "freespace" }
-        "A" { Run-All -UserProfile $UserProfile }
-        "ALL" { Run-All -UserProfile $UserProfile }
-        default { return }
+    if ($systemActivities.Count -gt 0) {
+        Run-AsSystem -UserProfile $UserProfile -Task ($systemActivities -join ",")
     }
+
+    Write-Host "Selected cleanup activities completed." -ForegroundColor Green
 }
 
-# Dispatches one named SYSTEM cleanup task for the supplied profile, then exits with success or failure.
+# Dispatches comma-separated SYSTEM cleanup activities for one profile, then exits with a status code.
 function Invoke-SystemTask {
     param(
         [string]$UserProfile,
@@ -841,23 +957,42 @@ function Invoke-SystemTask {
         $UserProfile = [Environment]::ExpandEnvironmentVariables("%userprofile%")
     }
 
-    switch ($Task) {
-        "cleanfiles" { Clean-Files -UserProfile $UserProfile }
-        "eventlogs"  { Clean-EventLogs }
-        "freespace"  { Clean-FreeSpace }
-        "all" {
-            Clean-Files -UserProfile $UserProfile
-            Clean-EventLogs
-            Clean-FreeSpace
-        }
-        default {
-            Write-Warning "Unknown system task '$Task'."
-            exit 1
+    $tasks = @($Task.Split(",", [System.StringSplitOptions]::RemoveEmptyEntries))
+    if ($tasks -contains "all") {
+        $tasks = @($script:FileCleanupActivityIds) + @("recyclebin", "networkactivity", "eventlogs", "freespace")
+    }
+    if ($tasks -contains "cleanfiles") {
+        $tasks = @($tasks | Where-Object { $_ -ne "cleanfiles" }) + $script:FileCleanupActivityIds
+    }
+
+    $validSystemActivities = @($script:FileCleanupActivityIds) + @(
+        "recyclebin",
+        "networkactivity",
+        "eventlogs",
+        "freespace"
+    )
+    $unknownTasks = @($tasks | Where-Object { $validSystemActivities -notcontains $_ })
+    if ($unknownTasks.Count -gt 0) {
+        Write-Warning "Unknown system task(s): $($unknownTasks -join ', ')."
+        exit 1
+    }
+
+    $selectedFileActivities = @($tasks | Where-Object { $script:FileCleanupActivityIds -contains $_ })
+    if ($selectedFileActivities.Count -gt 0) {
+        Clean-Files -UserProfile $UserProfile -Activities $selectedFileActivities
+    }
+
+    foreach ($taskId in $tasks) {
+        switch ($taskId) {
+            "recyclebin" { Clean-RecycleBin -UserProfile $UserProfile }
+            "networkactivity" { Clear-NetworkActivity }
+            "eventlogs" { Clean-EventLogs }
+            "freespace" { Clean-FreeSpace }
         }
     }
 
-    Start-Sleep -Seconds 10
-    exit
+    Write-Host "Selected cleanup activities completed." -ForegroundColor Green
+    exit 0
 }
 
 ###############################
@@ -871,9 +1006,12 @@ if ([string]::IsNullOrWhiteSpace($Action)) {
 
     Ensure-Elevated -UserProfile $UserProfile
 
-    Show-MainMenu
-    $choice = Read-Host "Select an option"
-    Invoke-MenuChoice -Choice $choice -UserProfile $UserProfile
+    $selectedActivities = @(Show-CleanupChecklist)
+    if ($selectedActivities.Count -eq 0) {
+        return
+    }
+
+    Invoke-SelectedActivities -Activities $selectedActivities -UserProfile $UserProfile
     return
 }
 

@@ -47,17 +47,39 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\cleanup.ps1
 
 Approve the UAC prompt with the same Windows account that launched the script. The original profile path is retained across elevation, while current-user registry cleanup operates on the elevated account's `HKCU` hive.
 
-The command-line `Action`, `UserProfile`, and `Task` parameters are internal relaunch parameters. Normal use should go through the menu.
+The command-line `Action`, `UserProfile`, and `Task` parameters are internal relaunch parameters. Normal use should go through the checklist.
 
-## Menu
+## Interactive checklist
 
-| Choice | Operation |
+The terminal UI starts with every activity unchecked. It supports:
+
+| Key | Action |
 | --- | --- |
-| `1` | Runs the saved Disk Cleanup profile. |
-| `2` | Clears current-user activity, configured files and caches, the selected profile's Recycle Bin, and DNS cache. |
-| `3` | Clears Windows event logs. |
-| `4` | Retrims SSD free space and wipes HDD free space. |
-| `A` | Runs all operations in the order shown below. |
+| `Up` / `Down` | Move the highlighted row. |
+| `Space` | Check or uncheck the highlighted activity. |
+| `A` | Check all activities. |
+| `U` | Uncheck all activities. |
+| `Enter` | Run the checked activities. |
+| `Esc` | Exit without cleanup. |
+
+The checklist exposes these activities independently:
+
+- Windows Disk Cleanup profile
+- Registry MRUs and current clipboard
+- Temporary files
+- Crash dumps and Windows Error Reporting files
+- Explorer, shader, RDP, clipboard, and Internet caches
+- PowerShell and recent-item history
+- Google Chrome data
+- Microsoft Edge data
+- Brave data
+- Mozilla Firefox data
+- Recycle Bin
+- DNS resolver cache
+- Windows event logs
+- Fixed-drive free-space cleanup
+
+Selecting event logs still opens its separate all/minimal/cancel confirmation. Browser selections are skipped individually when the corresponding browser is running.
 
 ## What is cleaned
 
@@ -141,10 +163,11 @@ The script follows this sequence:
 
 1. Captures the interactive user's profile path.
 2. Restarts itself through UAC as administrator.
-3. Shows the menu.
-4. Performs current-user registry and clipboard cleanup only if the elevated `HKCU` profile matches the captured target profile.
-5. Validates PsExec's Microsoft signature, then starts the file, event-log, and free-space tasks as `NT AUTHORITY\SYSTEM` in the current session.
-6. Selects normal deletion, SDelete, or TRIM based on the physical media type.
+3. Shows the interactive checklist and collects the checked activity IDs.
+4. Runs checked Disk Cleanup and current-user registry/clipboard activities in the elevated interactive process.
+5. Validates PsExec's Microsoft signature, then sends the remaining checked activities to one `NT AUTHORITY\SYSTEM` process.
+6. The SYSTEM process groups selected file categories into one pass and independently dispatches Recycle Bin, DNS, event-log, and free-space operations.
+7. File deletion selects normal deletion or SDelete based on media type; free-space cleanup selects TRIM or SDelete.
 
 Running privileged tasks as SYSTEM allows access to protected cache locations while retaining the originally captured user profile for profile-specific paths.
 
@@ -166,6 +189,8 @@ The main settings are at the top of `cleanup.ps1`:
 | `$script:PortableBraveProfileRoot` | Portable Brave root, enabled only when its `Preferences` marker exists. |
 | `$script:ChromiumActivityPaths` | Relative Chromium cache, history, site-data, and session targets. |
 | `$script:UserActivityRegistryPaths` | Current-user registry history targets. |
+| `$script:FileCleanupActivityIds` | File activity IDs accepted by the SYSTEM dispatcher. |
+| `$script:CleanupActivities` | Ordered checklist rows and their activity IDs. |
 
 A cleanup path ending in `*` removes its contents while leaving the parent directory available for Windows or the application to reuse. Missing paths are reported and skipped.
 

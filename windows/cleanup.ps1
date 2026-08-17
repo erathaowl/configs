@@ -9,6 +9,7 @@ param(
 ###############################
 $script:EnableEventLogsChoice = $true
 $script:EnableJumpListCleanup = $false
+$script:EnableShellBagCleanup = $false
 $script:CleanMgrProfile = 2504
 $script:SDeletePath = "sdelete.exe"
 $script:SDeleteFreeSpaceReservePercent = 10
@@ -35,12 +36,19 @@ $script:CleanupPathTemplates = @(
     "{UserProfile}\AppData\Local\Mozilla\Firefox\Profiles\*\cache2\*",
     "{UserProfile}\AppData\Local\Mozilla\Firefox\Profiles\*\startupCache\*",
     "{UserProfile}\AppData\Local\Mozilla\Firefox\Profiles\*\thumbnails\*",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\AlternateServices.txt",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\bounce-tracking-protection.sqlite*",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\cookies.sqlite*",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\enumerate_devices.txt",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\favicons.sqlite*",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\formhistory.sqlite*",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\protections.sqlite*",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\sessionCheckpoints.json",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\sessionstore.jsonlz4",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\sessionstore-backups\*",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\storage.sqlite*",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\storage\default\*",
+    "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\storage\temporary\*",
     "{UserProfile}\AppData\Roaming\Mozilla\Firefox\Profiles\*\webappsstore.sqlite*"
 )
 if ($script:EnableJumpListCleanup) {
@@ -59,21 +67,27 @@ if (Test-Path -LiteralPath "$script:PortableBraveProfileRoot\Preferences" -PathT
     $script:ChromiumProfileRoots += $script:PortableBraveProfileRoot
 }
 $script:ChromiumActivityPaths = @(
+    "BrowsingTopicsState",
     "Cache\*",
     "Code Cache\*",
     "Cookies",
     "Cookies-journal",
     "Current Session",
     "Current Tabs",
+    "DIPS",
+    "DIPS-journal",
     "Favicons",
     "Favicons-journal",
     "GPUCache\*",
     "History",
     "History-journal",
     "IndexedDB\*",
+    "InterestGroups\*",
     "Last Session",
     "Last Tabs",
     "Local Storage\*",
+    "Media History",
+    "Media History-journal",
     "Network\Cookies",
     "Network\Cookies-journal",
     "Network\Network Persistent State",
@@ -83,9 +97,14 @@ $script:ChromiumActivityPaths = @(
     "Network Action Predictor-journal",
     "Service Worker\*",
     "Session Storage\*",
+    "SharedStorage\*",
+    "SharedStorage-wal",
     "Sessions\*",
+    "Site Characteristics Database\*",
     "Top Sites",
     "Top Sites-journal",
+    "Trust Tokens",
+    "Trust Tokens-journal",
     "Visited Links",
     "WebStorage\*"
 )
@@ -120,6 +139,14 @@ $script:UserActivityRegistryPaths = @(
     "HKCU:\Software\Microsoft\Office\*\*\Place MRU",
     "HKCU:\Software\Microsoft\Office\*\*\User MRU"
 )
+if ($script:EnableShellBagCleanup) {
+    $script:UserActivityRegistryPaths += @(
+        "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\BagMRU",
+        "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags",
+        "HKCU:\Software\Microsoft\Windows\Shell\BagMRU",
+        "HKCU:\Software\Microsoft\Windows\Shell\Bags"
+    )
+}
 $script:DriveInfoCache = @{}
 $script:SysinternalsPathCache = @{}
 

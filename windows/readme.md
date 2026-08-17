@@ -89,8 +89,8 @@ For every discovered profile under the standard installation locations, the scri
 - Google Chrome cache, code cache, GPU cache, service workers, browsing and download history, favicons, URL prediction data, top sites, and visited-link data
 - Microsoft Edge equivalents
 - Brave equivalents
-- Chromium cookies, site storage, IndexedDB, network-origin state, and current/recent session files
-- Firefox disk/startup caches, thumbnails, cookies, favicons, form history, site storage, and session-restore data
+- Chromium cookies, site storage, IndexedDB, Privacy Sandbox interest/topic data, bounce-tracking state, media history, trust tokens, site-characteristics data, network-origin state, and current/recent session files
+- Firefox disk/startup caches, thumbnails, cookies, favicons, form history, tracker-protection statistics, bounce-tracking state, site storage indexes/data, network alternative-service cache, device-enumeration salts, and session-restore data
 
 The configured portable Brave profile under `F:\Browsers\Brave\Default\Default` receives equivalent Chromium cleanup only when its `Preferences` profile marker exists. Update `$script:PortableBraveProfileRoot` if that profile is stored elsewhere. This marker check prevents a stale drive letter from turning an unrelated directory into a cleanup target.
 
@@ -110,6 +110,8 @@ The script removes keys that Windows or applications recreate as needed, includi
 - Office file, place, and per-user MRU lists
 
 This also clears the current clipboard. Pinned taskbar and Start menu items are not removed.
+
+ShellBag keys can reveal previously browsed folders but also store Explorer folder-view preferences. They are preserved by default. Enabling `$script:EnableShellBagCleanup` removes that metadata and resets folder layouts, view modes, sorting, and window preferences to Windows defaults; it does not remove files or folders.
 
 ### Recycle Bin and DNS
 
@@ -154,6 +156,7 @@ The main settings are at the top of `cleanup.ps1`:
 | --- | --- |
 | `$script:EnableEventLogsChoice` | Enables the all/minimal/cancel event-log prompt. |
 | `$script:EnableJumpListCleanup` | Clears Jump List databases when enabled; disabled to preserve pinned destinations. |
+| `$script:EnableShellBagCleanup` | Clears folder-navigation metadata when enabled; disabled to preserve Explorer view settings. |
 | `$script:CleanMgrProfile` | Disk Cleanup profile number. |
 | `$script:SDeletePath` | SDelete executable name or path. |
 | `$script:SDeleteFreeSpaceReservePercent` | Percentage left free during HDD free-space cleaning. |
@@ -168,6 +171,8 @@ A cleanup path ending in `*` removes its contents while leaving the parent direc
 
 Jump List databases mix activity history with user-pinned destinations. They are preserved by default. Set `$script:EnableJumpListCleanup` to `$true` only if removing both recent and pinned Jump List entries is acceptable.
 
+ShellBag history mixes folder-navigation metadata with Explorer layout preferences. Set `$script:EnableShellBagCleanup` to `$true` only if resetting those preferences is acceptable.
+
 ## Deliberate exclusions and limitations
 
 To avoid damaging Windows or deleting credentials and user content, the script does not remove:
@@ -177,8 +182,8 @@ To avoid damaging Windows or deleting credentials and user content, the script d
 - Windows restore points, volume shadow copies, backups, or File History
 - Prefetch and live Connected Devices activity, Windows notification, WebCache, and broad system-cache databases
 - The page file, hibernation file, registry transaction logs, or NTFS USN journal
-- Defender protection history, Amcache, SRUM, or other protected security/system databases
-- Windows Search indexes
+- Defender protection history, Amcache, SRUM, BAM/DAM, or other protected security/system databases
+- Windows Search indexes, NTFS forensic structures, Wi-Fi profiles, or network-location profiles
 - Cloud-side Microsoft activity, browser synchronization data, DNS provider logs, router logs, or enterprise audit systems
 - Shell histories for WSL, Python, Node.js, Git Bash, or third-party tools
 

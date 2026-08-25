@@ -30,7 +30,7 @@ All code you produce MUST be written in English.
 
 This applies to identifiers, comments, documentation, docstrings, log messages, diagnostic messages, and internal string literals.
 
-User-facing strings SHOULD also be written in English unless another language is explicitly required by the user, the task, or the application's existing localization conventions.
+User-facing strings SHOULD also be written in English unless another language is explicitly required by the user.
 
 
 # CODING APPROACH

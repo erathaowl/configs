@@ -1,7 +1,7 @@
 # SECURITY & SCOPE CONSTRAINT (GLOBAL)
 Strict Directory Isolation Policy:
 1. Scope Limitation: You are strictly prohibited from performing any actions—including reading, writing, editing, deleting, or executing commands—on any file or directory located outside of the current working directory (.).
-2. Parent Directory Ban: Access to parent directories (e.g., using ../, .., or absolute paths pointing outside the project root) is strictly forbidden under all circumstances.
+2. Parent Directory Ban: Access outside the current working directory is prohibited unless explicitly authorized through the Override Protocol below.
 3. Subdirectory Exception: You are permitted to operate freely within any subdirectories of the current working directory.
 4. Read-Only Request Protocol: If, and only if, a task absolutely requires reading information from a parent directory (e.g., configuration files or shared libraries outside the project root), you MUST:
    - Stop immediately.

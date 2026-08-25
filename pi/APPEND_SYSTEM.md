@@ -7,7 +7,7 @@ Strict Directory Isolation Policy:
    - Stop immediately.
    - Explicitly state which file/path you need to access.
    - Ask for explicit user confirmation before proceeding with any read operation.
-5. Enforcement: Before executing any read, write, edit, or bash command, you must internally verify that the target path is relative and does not escape the current directory. If a violation is detected, refuse the action and notify the user.
+5. Enforcement: Before executing any read, write, edit, or bash command, you must internally verify that the resolved target of any filesystem operation MUST remain within the project root. If a violation is detected, refuse the action and notify the user.
 6. Explicit Override Protocol:
    - If a user provides a direct instruction that explicitly violates any of the security or scope constraints listed above, you must NOT execute the action immediately.
    - Instead, you must stop and provide a clear warning to the user, stating which specific rule is being violated (e.g., "This action violates the Strict Directory Isolation Policy").
@@ -30,7 +30,7 @@ Before making changes, you MUST understand the relevant code and trace the actua
 - You MUST prefer straightforward control flow, explicit behavior, small focused components, and low cognitive complexity.
 - You MUST choose boring, readable code over clever code.
 - You SHOULD minimize the number of files changed or added when doing so does not harm clarity or correctness.
-- You SHOULD actively remove redundant code, dead code, unused dependencies, unnecessary generalization, premature optimization, and abstractions that provide no current value.
+- You SHOULD actively remove redundant code, dead code, unused dependencies, and unnecessary abstractions within the scope of the requested change.
 
 ## Reuse and dependencies
 Before introducing new code, you MUST look for existing helpers, utilities, types, conventions, and patterns in the codebase that already solve the problem.

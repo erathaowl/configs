@@ -1,0 +1,78 @@
+image:
+  name: pi-sandbox
+  distribution: ubuntu
+  release: noble
+  description: Pi coding agent sandbox
+
+source:
+  downloader: debootstrap
+  url: http://ports.ubuntu.com/ubuntu-ports
+  components:
+    - main
+    - universe
+
+packages:
+  manager: apt
+  update: true
+  cleanup: true
+
+  sets:
+    - packages:
+        - bash
+        - ca-certificates
+        - git
+        - ripgrep
+        - curl
+        - nano
+        - python3
+        - python3-pip
+        - python3-venv
+        - systemd-resolved
+      action: install
+      flags:
+        - --no-install-recommends
+
+files:
+  - path: /etc/netplan/10-lxc.yaml
+    generator: dump
+    mode: 0600
+    content: |-
+      network:
+        version: 2
+        ethernets:
+          eth0:
+            dhcp4: true
+
+actions:
+  - trigger: post-packages
+    action: |-
+      #!/bin/bash
+      set -euxo pipefail
+
+      systemctl enable systemd-networkd
+
+      # Node.js 24 + npm
+      curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+      apt-get install -y --no-install-recommends nodejs
+
+      # Update npm
+      npm install --global npm@latest
+
+      # Astral uv
+      curl -LsSf https://astral.sh/uv/install.sh \
+        | env UV_INSTALL_DIR="/usr/local/bin" UV_NO_MODIFY_PATH=1 sh
+
+      # Pi coding agent
+      npm install \
+        --global \
+        --ignore-scripts \
+        @earendil-works/pi-coding-agent
+
+      mkdir -p /workspace
+
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
+
+mappings:
+  architecture_map: debian
+

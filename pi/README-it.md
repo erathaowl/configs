@@ -1,29 +1,29 @@
 # Pi Sandbox
 
-Two sandbox approaches for running `pi-coding-agent`: a Docker sandbox with rolling persistence through `docker commit`, and a persistent Incus sandbox. Both baselines include Ruff and a Git wrapper that blocks the usual remote-write commands.
+Due modalità per eseguire `pi-coding-agent` in sandbox: una sandbox Docker con persistenza rolling tramite `docker commit` e una sandbox Incus persistente. Entrambe le baseline includono Ruff e un wrapper Git che blocca i normali comandi di scrittura remota.
 
-## Part I — Docker sandbox with rolling persistence
+## Parte I — Sandbox Docker con persistenza rolling
 
-This approach keeps the simplicity and filesystem isolation of a disposable Docker sandbox while preserving tools installed inside the container between runs.
+Questo approccio mantiene la semplicità e l'isolamento filesystem della sandbox Docker usa-e-getta, conservando però tra le esecuzioni i tool installati dentro il container.
 
-Instead of keeping one long-lived container, every session starts a new container from a rolling image. When Pi exits, the stopped container is committed back to the same image and then removed.
+Ogni sessione crea un nuovo container a partire da un'immagine rolling. Quando Pi termina, il container fermo viene salvato nuovamente nella stessa immagine tramite `docker commit` e poi eliminato.
 
 ```text
 pi-agent:rolling
       |
       | docker run
       v
-temporary container
+container temporaneo
       |
-      | Pi installs tools / modifies rootfs
+      | Pi installa tool / modifica il rootfs
       v
 docker commit
       |
       v
-pi-agent:rolling (updated)
+pi-agent:rolling aggiornata
 ```
 
-The current project is still mounted from the host at `/workspace`, while Pi state is stored separately in the named volume `pi-home` mounted at `/root/.pi`.
+Il progetto corrente continua a essere montato dall'host in `/workspace`, mentre lo stato di Pi è conservato separatamente nel named volume `pi-home`, montato in `/root/.pi`.
 
 ### Dockerfile
 
@@ -120,43 +120,41 @@ WORKDIR /workspace
 CMD ["pi"]
 ```
 
-The Docker baseline now matches the Incus software stack: Ubuntu 24.04, Node.js 24, current npm, Astral `uv`, Ruff, Python, Git, ripgrep, and Pi coding agent. Ruff is installed globally with `uv tool install ruff@latest`.
+La baseline Docker replica ora lo stack software Incus: Ubuntu 24.04, Node.js 24, npm aggiornato, Astral `uv`, Ruff, Python, Git, ripgrep e Pi coding agent. Ruff viene installato globalmente tramite `uv tool install ruff@latest`.
 
-### Git remote-write guard
+### Blocco delle scritture Git remote
 
-The image keeps the package-managed Git binary as `/usr/bin/git-real` and installs a wrapper at `/usr/bin/git`. The diversion is registered with `dpkg-divert`, so later APT upgrades keep the package binary diverted instead of overwriting the wrapper.
+L'immagine conserva il binario Git fornito dal package come `/usr/bin/git-real` e installa un wrapper in `/usr/bin/git`. La deviazione viene registrata con `dpkg-divert`, quindi i successivi aggiornamenti APT continuano a installare il binario del package nel percorso deviato senza sovrascrivere il wrapper.
 
-The wrapper blocks `git push`, `git send-pack`, and `git lfs push`. Local operations and remote reads such as `status`, `diff`, `log`, `fetch`, `pull`, and `clone` are passed to `/usr/bin/git-real`.
+Il wrapper blocca `git push`, `git send-pack` e `git lfs push`. Le operazioni locali e le letture remote come `status`, `diff`, `log`, `fetch`, `pull` e `clone` vengono inoltrate a `/usr/bin/git-real`.
 
-> This is a safety guard rather than a hard security boundary. A process that deliberately executes `/usr/bin/git-real` can bypass it.
+> È un safety guard, non un confine di sicurezza forte. Un processo che esegue deliberatamente `/usr/bin/git-real` può aggirarlo.
 
-### Initial image build
+### Build iniziale dell'immagine
 
-Build the initial rolling image from the Dockerfile:
+Costruire l'immagine rolling iniziale dal Dockerfile:
 
 ```powershell
 docker build -t pi-agent:rolling .
 ```
 
-This is needed only for the initial setup or when you intentionally want to rebuild the baseline from the Dockerfile.
+Serve per il setup iniziale o quando si vuole ricreare intenzionalmente la baseline dal Dockerfile.
 
-### Persistence model
+### Modello di persistenza
 
-Three kinds of state are handled separately:
+I tre tipi di stato vengono gestiti separatamente:
 
 ```text
-Host current directory  -> /workspace   bind mount
-Pi state                -> /root/.pi    named volume: pi-home
-Container filesystem    -> committed    image: pi-agent:rolling
+Directory corrente host -> /workspace   bind mount
+Stato di Pi             -> /root/.pi    named volume: pi-home
+Filesystem container    -> commit       image: pi-agent:rolling
 ```
 
-Files under `/workspace` remain on the host. Pi configuration and other state under `/root/.pi` remain in the named volume. Tools installed elsewhere in the container, for example with `apt`, `npm -g`, `pip`, or similar commands, are captured by `docker commit` and become available in the next session.
+I file sotto `/workspace` restano sull'host. Configurazione e altro stato di Pi sotto `/root/.pi` rimangono nel named volume. I tool installati nel resto del filesystem del container, per esempio tramite `apt`, `npm -g`, `pip` o comandi analoghi, vengono acquisiti da `docker commit` e saranno disponibili nella sessione successiva.
 
-Docker does not include bind mounts or volume contents in `docker commit`, which is intentional in this setup.
+Docker non include nel `docker commit` il contenuto dei bind mount e dei volume, comportamento voluto in questa configurazione.
 
-### PowerShell profile function
-
-Add the following function to `profile.ps1`:
+### Funzione da aggiungere a `profile.ps1`
 
 ```powershell
 function pi-sandbox {
@@ -174,34 +172,34 @@ function pi-sandbox {
 }
 ```
 
-Reload the profile:
+Ricaricare il profilo:
 
 ```powershell
 . $PROFILE
 ```
 
-Then run Pi from any project directory:
+Poi eseguire Pi da qualsiasi progetto:
 
 ```powershell
 cd C:\path\to\project
 pi-sandbox
 ```
 
-Arguments are forwarded directly to Pi:
+Gli argomenti vengono inoltrati direttamente a Pi:
 
 ```powershell
 pi-sandbox --help
 ```
 
-To open an interactive Bash shell instead of Pi:
+Per aprire una shell Bash interattiva al posto di Pi:
 
 ```powershell
 pi-sandbox shell
 ```
 
-The foreground `docker run -it` blocks until Pi exits. The function then commits the container filesystem to `pi-agent:rolling` and removes the stopped container. The next invocation starts from the updated image while mounting the new current directory as `/workspace`.
+Il `docker run -it` rimane in foreground fino all'uscita da Pi. La funzione esegue quindi il commit del filesystem del container in `pi-agent:rolling` ed elimina il container fermo. L'esecuzione successiva parte dall'immagine aggiornata e monta la nuova directory corrente in `/workspace`.
 
-A container left behind by an interrupted shell can be inspected with:
+Un eventuale container rimasto dopo un'interruzione della shell può essere individuato con:
 
 ```powershell
 docker ps -a --filter "name=pi-sandbox-"
@@ -209,13 +207,13 @@ docker ps -a --filter "name=pi-sandbox-"
 
 ---
 
-## Part II — Persistent Incus sandbox
+## Parte II — Sandbox Incus persistente
 
-This setup keeps the sandbox filesystem persistent while exposing only the current host directory at `/workspace`. Pi configuration, extensions, skills, caches, and tools installed inside the container survive between runs. The image also installs Ruff and the same Git remote-write guard used by the Docker baseline.
+Questa configurazione mantiene persistente il filesystem del sandbox esponendo dall'host solamente la directory corrente in `/workspace`. Configurazione, extension, skill, cache e tool installati nel container rimangono disponibili tra le esecuzioni. L'immagine installa inoltre Ruff e lo stesso blocco delle scritture Git remote usato nella baseline Docker.
 
-> The YAML below targets ARM64 (`aarch64`). On an `x86_64` host, use `architecture: x86_64` and `http://archive.ubuntu.com/ubuntu` as `source.url`.
+> Lo YAML seguente è configurato per ARM64 (`aarch64`). Su host `x86_64`, usare `architecture: x86_64` e `http://archive.ubuntu.com/ubuntu` come `source.url`.
 
-### 1. Prerequisites
+### 1. Prerequisiti
 
 ```bash
 sudo apt update
@@ -223,14 +221,14 @@ sudo apt install -y incus debootstrap snapd
 sudo snap install distrobuilder --classic
 ```
 
-Run Incus without `sudo`:
+Per usare Incus senza `sudo`:
 
 ```bash
 sudo adduser "$USER" incus-admin
 newgrp incus-admin
 ```
 
-`incus-admin` grants full control over the Incus daemon.
+`incus-admin` concede pieno controllo sul daemon Incus.
 
 ### 2. `pi-sandbox.yaml`
 
@@ -374,9 +372,9 @@ mappings:
   architecture_map: debian
 ```
 
-### 3. Idempotent build
+### 3. Build idempotente
 
-Save as `build.sh`:
+Salvare come `build.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -392,7 +390,7 @@ sudo distrobuilder build-incus \
     pi-sandbox.yaml
 ```
 
-Then:
+Poi:
 
 ```bash
 chmod +x build.sh
@@ -406,7 +404,7 @@ incus storage show pi-storage >/dev/null 2>&1 || \
     incus storage create pi-storage dir
 ```
 
-### 5. Private NAT network
+### 5. Rete privata NAT
 
 ```bash
 incus network show pi-sandbox-net >/dev/null 2>&1 || \
@@ -418,7 +416,7 @@ incus network show pi-sandbox-net >/dev/null 2>&1 || \
 
 ### 6. UFW
 
-If UFW is enabled:
+Se UFW è attivo:
 
 ```bash
 sudo ufw allow in on pi-sandbox-net to any port 67 proto udp
@@ -426,9 +424,9 @@ sudo ufw allow in on pi-sandbox-net to any port 53
 sudo ufw route allow in on pi-sandbox-net from 10.240.0.0/24
 ```
 
-These rules allow DHCP, DNS, and forwarded/NAT traffic to the Internet.
+Le tre regole consentono rispettivamente DHCP, DNS e traffico inoltrato/NAT verso Internet.
 
-### 7. Persistent instance
+### 7. Istanza persistente
 
 ```bash
 incus info pi-sandbox >/dev/null 2>&1 || \
@@ -437,7 +435,7 @@ incus info pi-sandbox >/dev/null 2>&1 || \
         --network pi-sandbox-net
 ```
 
-### 8. Host files
+### 8. File host
 
 ```bash
 sudo install -d -m 700 /etc/pi
@@ -445,20 +443,20 @@ sudo chmod 600 /etc/pi/auth.json
 sudo chmod 600 /etc/pi/APPEND_SYSTEM.md
 ```
 
-Files:
+File usati:
 
 ```text
 /etc/pi/auth.json
 /etc/pi/APPEND_SYSTEM.md
 ```
 
-### 9. Mounts
+### 9. Mount
 
 ```bash
 incus stop pi-sandbox 2>/dev/null || true
 ```
 
-Dynamic workspace:
+Workspace dinamico:
 
 ```bash
 incus config device remove pi-sandbox workspace 2>/dev/null || true
@@ -491,9 +489,9 @@ incus config device add \
     shift=true
 ```
 
-### 10. Bash helper
+### 10. Funzione Bash
 
-Add to `~/.bashrc`:
+Aggiungere a `~/.bashrc`:
 
 ```bash
 pi-sandbox () {
@@ -522,32 +520,32 @@ pi-sandbox () {
 }
 ```
 
-Then:
+Poi:
 
 ```bash
 source ~/.bashrc
 ```
 
-### 11. Usage
+### 11. Utilizzo
 
 ```bash
 cd ~/projects/example
 pi-sandbox
 ```
 
-Arguments are forwarded to Pi:
+Gli argomenti vengono inoltrati a Pi:
 
 ```bash
 pi-sandbox --help
 ```
 
-To open an interactive shell inside the same sandbox:
+Per aprire una shell interattiva nello stesso sandbox:
 
 ```bash
 pi-sandbox shell
 ```
 
-### 12. Network verification
+### 12. Verifica rete
 
 ```bash
 incus start pi-sandbox
@@ -556,11 +554,11 @@ incus exec pi-sandbox -- ping -c 1 google.com
 incus exec pi-sandbox -- curl -I https://github.com
 ```
 
-The container should receive an IPv4 address in `10.240.0.0/24`.
+Il container deve ricevere un IPv4 nella subnet `10.240.0.0/24`.
 
-### Persistence and security
+### Persistenza e sicurezza
 
-The Incus root filesystem remains persistent:
+Persistono nel root filesystem Incus:
 
 ```text
 /root/.pi/agent
@@ -569,7 +567,7 @@ The Incus root filesystem remains persistent:
 /opt
 ```
 
-The current project is mounted dynamically:
+Il progetto corrente viene montato dinamicamente:
 
 ```text
 Host $PWD
@@ -579,7 +577,7 @@ Host $PWD
 /workspace
 ```
 
-Keep the container unprivileged, mount only the current project, and do not expose Docker/Incus sockets or attach the container directly to the physical LAN.
+Mantenere il container unprivileged, montare solo il progetto corrente e non esporre socket Docker/Incus o la LAN fisica.
 
 ### Rebuild
 
@@ -592,11 +590,11 @@ incus launch pi-sandbox pi-sandbox \
     --network pi-sandbox-net
 ```
 
-After recreating the instance, reapply the `workspace`, `pi-auth`, and `pi-append-system-prompt` devices.
+Dopo la ricreazione riapplicare i tre device `workspace`, `pi-auth` e `pi-append-system-prompt`.
 
 
-### Implementation references
+### Riferimenti implementativi
 
-- Ruff installation: https://docs.astral.sh/ruff/installation/
-- uv tool installation: https://docs.astral.sh/uv/guides/tools/
+- Installazione Ruff: https://docs.astral.sh/ruff/installation/
+- Installazione tool con uv: https://docs.astral.sh/uv/guides/tools/
 - `dpkg-divert`: https://manpages.ubuntu.com/manpages/resolute/man1/dpkg-divert.1.html

@@ -3,6 +3,7 @@ image:
   distribution: ubuntu
   release: noble
   description: Pi coding agent sandbox
+  architecture: aarch64
 
 source:
   downloader: debootstrap
@@ -33,15 +34,15 @@ packages:
         - --no-install-recommends
 
 files:
-  - path: /etc/netplan/10-lxc.yaml
+  - path: /etc/systemd/network/10-eth0.network
     generator: dump
-    mode: 0600
     content: |-
-      network:
-        version: 2
-        ethernets:
-          eth0:
-            dhcp4: true
+      [Match]
+      Name=eth0
+
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
 
 actions:
   - trigger: post-packages
@@ -49,24 +50,83 @@ actions:
       #!/bin/bash
       set -euxo pipefail
 
+      # Configure networking
       systemctl enable systemd-networkd
+      systemctl enable systemd-resolved
 
-      # Node.js 24 + npm
+      rm -f /etc/resolv.conf
+      ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+      # Install Node.js 24 and npm
       curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
       apt-get install -y --no-install-recommends nodejs
 
       # Update npm
       npm install --global npm@latest
 
-      # Astral uv
+      # Install Astral uv
       curl -LsSf https://astral.sh/uv/install.sh \
         | env UV_INSTALL_DIR="/usr/local/bin" UV_NO_MODIFY_PATH=1 sh
 
-      # Pi coding agent
+      # Install Ruff globally through uv
+      UV_TOOL_DIR=/opt/uv-tools \
+      UV_TOOL_BIN_DIR=/usr/local/bin \
+        uv tool install ruff@latest
+
+      # Install Pi coding agent
       npm install \
         --global \
         --ignore-scripts \
         @earendil-works/pi-coding-agent
+
+      # Preserve the real Git binary and install the remote-write guard
+      dpkg-divert \
+        --local \
+        --rename \
+        --add \
+        --divert /usr/bin/git-real \
+        /usr/bin/git
+
+      cat > /usr/bin/git <<'WRAPPER'
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      args=("$@")
+      command=""
+      command_index=-1
+      i=0
+
+      while (( i < ${#args[@]} )); do
+          arg="${args[$i]}"
+
+          case "$arg" in
+              -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
+                  ((i += 2))
+                  ;;
+              -*)
+                  ((i += 1))
+                  ;;
+              *)
+                  command="$arg"
+                  command_index="$i"
+                  break
+                  ;;
+          esac
+      done
+
+      if [[ "$command" == "push" || "$command" == "send-pack" ]]; then
+          echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
+          exit 1
+      fi
+
+      if [[ "$command" == "lfs" && "${args[$((command_index + 1))]:-}" == "push" ]]; then
+          echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
+          exit 1
+      fi
+
+      exec /usr/bin/git-real "$@"
+      WRAPPER
+      chmod 755 /usr/bin/git
 
       mkdir -p /workspace
 
@@ -75,4 +135,3 @@ actions:
 
 mappings:
   architecture_map: debian
-

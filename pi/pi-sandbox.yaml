@@ -79,55 +79,6 @@ actions:
         --ignore-scripts \
         @earendil-works/pi-coding-agent
 
-      # Preserve the real Git binary and install the remote-write guard
-      dpkg-divert \
-        --local \
-        --rename \
-        --add \
-        --divert /usr/bin/git-real \
-        /usr/bin/git
-
-      cat > /usr/bin/git <<'WRAPPER'
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      args=("$@")
-      command=""
-      command_index=-1
-      i=0
-
-      while (( i < ${#args[@]} )); do
-          arg="${args[$i]}"
-
-          case "$arg" in
-              -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
-                  ((i += 2))
-                  ;;
-              -*)
-                  ((i += 1))
-                  ;;
-              *)
-                  command="$arg"
-                  command_index="$i"
-                  break
-                  ;;
-          esac
-      done
-
-      if [[ "$command" == "push" || "$command" == "send-pack" ]]; then
-          echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
-          exit 1
-      fi
-
-      if [[ "$command" == "lfs" && "${args[$((command_index + 1))]:-}" == "push" ]]; then
-          echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
-          exit 1
-      fi
-
-      exec /usr/bin/git-real "$@"
-      WRAPPER
-      chmod 755 /usr/bin/git
-
       mkdir -p /workspace
 
       apt-get clean

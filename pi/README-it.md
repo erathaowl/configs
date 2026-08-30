@@ -1,6 +1,6 @@
 # Pi Sandbox
 
-Due modalità per eseguire `pi-coding-agent` in sandbox: una sandbox Docker con persistenza rolling tramite `docker commit` e una sandbox Incus persistente. Entrambe le baseline includono Ruff e un wrapper Git che blocca i normali comandi di scrittura remota.
+Due modalità per eseguire `pi-coding-agent` in sandbox: una sandbox Docker con persistenza rolling tramite `docker commit` e una sandbox Incus persistente. Entrambe le baseline includono Ruff.
 
 ## Parte I — Sandbox Docker con persistenza rolling
 
@@ -68,67 +68,11 @@ RUN npm install \
     --ignore-scripts \
     @earendil-works/pi-coding-agent
 
-# Preserve the real Git binary and install a wrapper that blocks remote writes
-RUN dpkg-divert \
-        --local \
-        --rename \
-        --add \
-        --divert /usr/bin/git-real \
-        /usr/bin/git \
-    && cat > /usr/bin/git <<'WRAPPER'
-#!/usr/bin/env bash
-set -euo pipefail
-
-args=("$@")
-command=""
-command_index=-1
-i=0
-
-while (( i < ${#args[@]} )); do
-    arg="${args[$i]}"
-
-    case "$arg" in
-        -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
-            ((i += 2))
-            ;;
-        -*)
-            ((i += 1))
-            ;;
-        *)
-            command="$arg"
-            command_index="$i"
-            break
-            ;;
-    esac
-done
-
-if [[ "$command" == "push" || "$command" == "send-pack" ]]; then
-    echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
-    exit 1
-fi
-
-if [[ "$command" == "lfs" && "${args[$((command_index + 1))]:-}" == "push" ]]; then
-    echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
-    exit 1
-fi
-
-exec /usr/bin/git-real "$@"
-WRAPPER
-RUN chmod 755 /usr/bin/git
-
 WORKDIR /workspace
 CMD ["pi"]
 ```
 
 La baseline Docker replica ora lo stack software Incus: Ubuntu 24.04, Node.js 24, npm aggiornato, Astral `uv`, Ruff, Python, Git, ripgrep e Pi coding agent. Ruff viene installato globalmente tramite `uv tool install ruff@latest`.
-
-### Blocco delle scritture Git remote
-
-L'immagine conserva il binario Git fornito dal package come `/usr/bin/git-real` e installa un wrapper in `/usr/bin/git`. La deviazione viene registrata con `dpkg-divert`, quindi i successivi aggiornamenti APT continuano a installare il binario del package nel percorso deviato senza sovrascrivere il wrapper.
-
-Il wrapper blocca `git push`, `git send-pack` e `git lfs push`. Le operazioni locali e le letture remote come `status`, `diff`, `log`, `fetch`, `pull` e `clone` vengono inoltrate a `/usr/bin/git-real`.
-
-> È un safety guard, non un confine di sicurezza forte. Un processo che esegue deliberatamente `/usr/bin/git-real` può aggirarlo.
 
 ### Build iniziale dell'immagine
 
@@ -209,7 +153,7 @@ docker ps -a --filter "name=pi-sandbox-"
 
 ## Parte II — Sandbox Incus persistente
 
-Questa configurazione mantiene persistente il filesystem del sandbox esponendo dall'host solamente la directory corrente in `/workspace`. Configurazione, extension, skill, cache e tool installati nel container rimangono disponibili tra le esecuzioni. L'immagine installa inoltre Ruff e lo stesso blocco delle scritture Git remote usato nella baseline Docker.
+Questa configurazione mantiene persistente il filesystem del sandbox esponendo dall'host solamente la directory corrente in `/workspace`. Configurazione, extension, skill, cache e tool installati nel container rimangono disponibili tra le esecuzioni. L'immagine installa inoltre Ruff.
 
 > Lo YAML seguente è configurato per ARM64 (`aarch64`). Su host `x86_64`, usare `architecture: x86_64` e `http://archive.ubuntu.com/ubuntu` come `source.url`.
 
@@ -313,55 +257,6 @@ actions:
         --global \
         --ignore-scripts \
         @earendil-works/pi-coding-agent
-
-      # Preserve the real Git binary and install the remote-write guard
-      dpkg-divert \
-        --local \
-        --rename \
-        --add \
-        --divert /usr/bin/git-real \
-        /usr/bin/git
-
-      cat > /usr/bin/git <<'WRAPPER'
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      args=("$@")
-      command=""
-      command_index=-1
-      i=0
-
-      while (( i < ${#args[@]} )); do
-          arg="${args[$i]}"
-
-          case "$arg" in
-              -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
-                  ((i += 2))
-                  ;;
-              -*)
-                  ((i += 1))
-                  ;;
-              *)
-                  command="$arg"
-                  command_index="$i"
-                  break
-                  ;;
-          esac
-      done
-
-      if [[ "$command" == "push" || "$command" == "send-pack" ]]; then
-          echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
-          exit 1
-      fi
-
-      if [[ "$command" == "lfs" && "${args[$((command_index + 1))]:-}" == "push" ]]; then
-          echo "ERROR: Remote Git writes are disabled in this sandbox." >&2
-          exit 1
-      fi
-
-      exec /usr/bin/git-real "$@"
-      WRAPPER
-      chmod 755 /usr/bin/git
 
       mkdir -p /workspace
 
@@ -597,4 +492,3 @@ Dopo la ricreazione riapplicare i tre device `workspace`, `pi-auth` e `pi-append
 
 - Installazione Ruff: https://docs.astral.sh/ruff/installation/
 - Installazione tool con uv: https://docs.astral.sh/uv/guides/tools/
-- `dpkg-divert`: https://manpages.ubuntu.com/manpages/resolute/man1/dpkg-divert.1.html

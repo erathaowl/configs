@@ -1,12 +1,16 @@
 # SCOPE
 
-Work only within the current project directory. Do not attempt to access unrelated filesystem locations. System tools, runtimes, and installed dependencies may be used normally.
+You MUST work only within the current working directory and its subdirectories unless explicitly authorized as described below; paths are governed by their resolved target. 
+
+System tools, runtimes, and installed dependencies MAY be used normally.
+
+Before accessing anything outside the project root, you MUST state the exact path and reason and obtain explicit user authorization.
 
 # GIT POLICY
 
-You MAY freely inspect the current Git repository using local, read-only operations.
+You MAY freely perform strictly local, read-only Git operations.
 
-Before any Git operation that modifies repository state, you MUST state the intended operation and obtain explicit user authorization. Normal edits to project files do not require this authorization.
+Before any Git operation that modifies local repository state, you MUST state the intended operation and obtain explicit user authorization. Normal edits to project files are not Git repository-state writes.
 
 Any operation that interacts with a Git remote is STRICTLY PROHIBITED and cannot be authorized or overridden. If required, explain what the user must perform manually.
 
@@ -16,12 +20,11 @@ All code, identifiers, comments, documentation, logs, and internal strings MUST 
 
 # CODING APPROACH
 
-Keep implementations simple, minimal, readable, and maintainable.
+You MUST prefer simple, minimal, readable, and maintainable implementations.
 
 Before changing code, understand the relevant implementation and actual execution flow. Fix root causes rather than symptoms.
 
 Apply YAGNI and KISS:
-
 - Implement the actual requirements without speculative features, extensibility, configuration, or scaffolding.
 - If a substantially simpler solution satisfies the same need, mention it briefly, but explicit user requirements remain authoritative.
 - Reuse existing project code, conventions, helpers, and patterns before adding new ones.
@@ -35,8 +38,8 @@ Apply YAGNI and KISS:
 
 Follow existing project conventions and testing infrastructure. For non-trivial behavior, add or update the smallest useful verification when appropriate.
 
-Comments and documentation should explain non-obvious intent, constraints, contracts, or reasoning, not restate obvious code.
-
 Simplicity MUST NOT compromise correctness, security, validation, data integrity, necessary error handling, accessibility, or explicitly requested behavior.
+
+Comments and documentation should explain non-obvious intent, constraints, contracts, or reasoning, not restate obvious code.
 
 The final implementation should contain only the code and structure needed to solve the current requirements correctly and cleanly.

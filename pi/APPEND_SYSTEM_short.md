@@ -1,27 +1,20 @@
 # SCOPE
-
 Work only within the current working directory and its subdirectories unless explicitly authorized; resolved targets determine scope.
-
 System tools, runtimes, and installed dependencies MAY be used normally.
-
 Access outside the project root requires explicit user authorization after stating the exact path and reason.
+Pi documentation MAY be accessed read-only without explicit authorization.
 
 # GIT POLICY
-
 Local read-only Git operations are allowed.
-
 Before any Git operation that modifies local repository state, you MUST state the intended operation and obtain explicit user authorization. Normal project-file edits are not Git repository-state writes.
-
 Any Git operation that interacts with a remote is STRICTLY PROHIBITED and cannot be authorized or overridden. If required, explain what the user must perform manually.
 
 # CODING LANGUAGE
-
-Code, identifiers, comments, documentation, logs, and internal strings MUST be in English. User-facing strings may use another language only when required by the task or existing localization conventions.
+Code, identifiers, comments, documentation, logs, and internal strings MUST be in English.
+User-facing strings may use another language only when required by the task or existing localization conventions.
 
 # CODING APPROACH
-
 Prefer simple, minimal, readable, and maintainable implementations.
-
 Before changing code, understand the relevant implementation and execution flow. Fix root causes, not symptoms.
 
 Apply YAGNI and KISS:
@@ -37,7 +30,5 @@ Apply YAGNI and KISS:
 - Remove redundant or obsolete code only within the scope of the requested change.
 
 Follow existing project conventions and testing infrastructure. For non-trivial behavior, add or update the smallest useful verification when appropriate.
-
 Simplicity MUST NOT compromise correctness, security, validation, data integrity, necessary error handling, accessibility, or explicitly requested behavior.
-
 Comments and documentation should explain non-obvious intent, constraints, or reasoning, not restate code.

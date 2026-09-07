@@ -13,7 +13,9 @@ fi
 alias sudo='sudo '
 
 # mixed usefull things
-alias nano='nano -c'
+#alias nano='nano -c'
+#alias nano='SUDO_EDITOR="nano -c" sudoedit'
+
 alias gistory="history | grep -i $1"
 alias untar="tar -xvf"
 alias cd..="cd .."
@@ -36,6 +38,7 @@ alias ipa=iplist
 alias ipm=maclist
 alias ipr=routelist
 alias ipp="ss -tulpn"
+alias ipar="ipa && echo && ipr"
 
 # Create parent directory on demand if needed
 alias mksdir='mkdir -pv'
@@ -117,15 +120,42 @@ ipscan() {
 #   and ask to proceed with upgrade
 alias supdate='sudo apt update && apt list --upgradable && read -t 10 -p "Press [ENTER] or wait 10 seconds..."; sudo NEEDRESTART_MODE=a apt dist-upgrade -y && sudo apt autoremove -y && sudo apt clean -y'
 
-# pi-agent sandboxed via docker
-pi-sandbox() {
+# pi-agend sandbox via docker
+pi-sandbox-docker() { 
     docker run --rm -it \
         -v "${PWD}:/workspace" \
         -v "pi-agent-home:/root/.pi/agent" \
         pi-sandbox "$@"
 }
 
-# minimal docker ps colored
+# start pi coding agent in lxc container
+pi-sandbox () {
+    local instance="pi-sandbox"
+    local workspace
+    local exit_code
+
+    workspace="$(realpath -- "$PWD")"
+
+    if incus info "$instance" | grep --color=auto -q '^Status: RUNNING'; then
+        incus stop "$instance" || return 1
+    fi
+
+    incus config device set "$instance" workspace source="$workspace" || return 1
+    incus start "$instance" || return 1
+
+    if [[ "$1" == "shell" ]]; then
+        incus exec "$instance" --cwd /workspace -- bash
+    else
+        incus exec "$instance" --cwd /workspace -- pi "$@"
+    fi
+
+    exit_code=$?
+    incus stop "$instance"
+    return "$exit_code"
+}
+alias pi='pi-sandbox'
+
+# minimal docker ps colored tab
 docker-ps() {
     docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}" \
     | awk '
@@ -134,4 +164,49 @@ docker-ps() {
         /Exited / { printf "\033[31m%s\033[0m\n", $0; next }
         { print }
     '
+}
+
+# Wrap nano to track the absolute path of a single edited (ALT+S to save readonly in nanorc) file and always enable cursor position display.
+unalias nano 2>/dev/null
+nano() {
+    if [[ $# -eq 1 ]]; then
+        NANO_CURRENT_FILE="$(realpath -m -- "$1")" command nano -c "$1"
+    else
+        command nano -c "$@"
+    fi
+}
+
+# Lazy command to perform git status-add-commit and skippable push
+lazygit() {
+    local push=true
+    local message=""
+
+    for arg in "$@"; do
+        if [[ "$arg" == "-np" ]]; then
+            push=false
+        else
+            message="$arg"
+        fi
+    done
+
+    if [[ -z "$message" ]]; then
+        echo "Usage: lazygit \"commit message\" [-np]"
+        return 1
+    fi
+
+    git status &&
+    git add . &&
+    git commit -m "$message" || return 1
+
+    printf '\033[7;32m     Committed       \033[0m\n'
+
+    if $push; then
+        git push || return 1
+        printf '\033[7;32m     Pushed          \033[0m\n'
+    else
+        printf '\033[7;33m     Push skipped    \033[0m\n'
+    fi
+
+    echo
+    git show --stat --oneline --color=always HEAD
 }

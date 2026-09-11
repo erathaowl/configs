@@ -145,6 +145,53 @@ pi-sandbox () {
 
     if [[ "$1" == "shell" ]]; then
         incus exec "$instance" --cwd /workspace -- bash
+
+    elif [[ "$1" == "list" ]]; then
+        shift
+
+        incus exec "$instance" --cwd /workspace -- bash -c '
+            package=""
+
+            while IFS= read -r line; do
+                trimmed="${line#"${line%%[![:space:]]*}"}"
+
+                [[ -z "$trimmed" ]] && continue
+
+                if [[ "$trimmed" == "User packages:" ]]; then
+                    printf "%s\n" "$trimmed"
+                    continue
+                fi
+
+                if [[ "$trimmed" == /* ]]; then
+                    path="$trimmed"
+                    version=""
+
+                    if [[ -f "$path/package.json" ]]; then
+                        version="$(node -p \
+                            "require(process.argv[1]).version || \"\"" \
+                            "$path/package.json" 2>/dev/null)"
+                    fi
+
+                    if [[ -n "$package" ]]; then
+                        if [[ -n "$version" ]]; then
+                            printf "  %s @%s\n" "$package" "$version"
+                        else
+                            printf "  %s\n" "$package"
+                        fi
+                    fi
+
+                    printf "    %s\n" "$path"
+                    package=""
+                else
+                    package="$trimmed"
+                fi
+            done < <(pi list "$@")
+
+            if [[ -n "$package" ]]; then
+                printf "  %s\n" "$package"
+            fi
+        ' _ "$@"
+
     else
         incus exec "$instance" --cwd /workspace -- pi "$@"
     fi

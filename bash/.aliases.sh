@@ -133,8 +133,12 @@ pi-sandbox () {
     local instance="pi-sandbox"
     local workspace
     local exit_code
+    local host_uid
+    local host_gid
 
     workspace="$(realpath -- "$PWD")"
+    host_uid="$(id -u)"
+    host_gid="$(id -g)"
 
     if incus info "$instance" | grep --color=auto -q '^Status: RUNNING'; then
         incus stop "$instance" || return 1
@@ -197,6 +201,11 @@ pi-sandbox () {
     fi
 
     exit_code=$?
+
+    incus exec "$instance" -- \
+        find /workspace -xdev -uid 0 -gid 0 \
+        -exec chown "$host_uid:$host_gid" {} +
+
     incus stop "$instance"
     return "$exit_code"
 }

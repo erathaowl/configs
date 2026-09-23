@@ -202,9 +202,7 @@ pi-sandbox () {
 
     exit_code=$?
 
-    incus exec "$instance" -- \
-        find /workspace -xdev -uid 0 -gid 0 \
-        -exec chown "$host_uid:$host_gid" {} +
+    incus exec "$instance" -- sh -c 'cd /workspace && find . -xdev -exec chown --no-dereference --reference=. {} +'
 
     incus stop "$instance"
     return "$exit_code"

@@ -129,85 +129,111 @@ pi-sandbox-docker() {
 }
 
 # start pi coding agent in lxc container
-pi-sandbox () {
+pi-sandbox-shared() {
+    emulate -L zsh
+    setopt localtraps
+
     local instance="pi-sandbox"
-    local workspace
-    local exit_code
-    local host_uid
-    local host_gid
+    local source_dir
+    local project_name
+    local safe_name
+    local hash
+    local device
+    local target
+    local exit_code=0
+    local mounted=0
+    local cleaning=0
+    local active_sessions=0
 
-    workspace="$(realpath -- "$PWD")"
-    host_uid="$(id -u)"
-    host_gid="$(id -g)"
+    source_dir="$(realpath -- "$PWD")" || return 1
+    project_name="$(basename -- "$source_dir")"
+    safe_name="$(printf '%s' "$project_name" | sed 's/[^[:alnum:]_.-]/-/g')"
+    hash="$(printf '%s' "$source_dir" | sha256sum | cut -c1-5)"
 
-    if incus info "$instance" | grep --color=auto -q '^Status: RUNNING'; then
-        incus stop "$instance" || return 1
+    device="piw-${safe_name}-${hash}"
+    target="/ws/${safe_name}-${hash}"
+
+    _pi_sandbox_shared_cleanup() {
+        (( cleaning )) && return
+        cleaning=1
+
+        if (( mounted )); then
+            echo "Restoring ownership: $source_dir"
+
+            incus exec "$instance" -- sh -c \
+                'cd "$1" && find . -xdev -exec chown --no-dereference --reference=. {} +' \
+                _ "$target"
+
+            #echo "Removing workspace device: $device"
+            incus config device remove "$instance" "$device"
+            mounted=0
+        fi
+
+        active_sessions="$(
+            incus config device list "$instance" 2>/dev/null |
+                grep -Ec '^piw-.*-[[:xdigit:]]{5}$' || true
+        )"
+
+        if (( active_sessions == 0 )); then
+            if incus info "$instance" 2>/dev/null |
+                grep -q '^Status: RUNNING$'; then
+                incus stop "$instance"
+            fi
+
+            echo "$instance stopped"
+        elif (( active_sessions == 1 )); then
+            echo "1 active session, $instance still running"
+        else
+            echo "$active_sessions active sessions, $instance still running"
+        fi
+    }
+
+    trap '_pi_sandbox_shared_cleanup; return 130' INT
+    trap '_pi_sandbox_shared_cleanup; return 143' TERM
+    trap '_pi_sandbox_shared_cleanup; return 129' HUP
+
+    # Remove a stale device left by an interrupted previous execution.
+    if incus config device list "$instance" 2>/dev/null |
+        grep -Fxq "$device"; then
+
+        if incus info "$instance" 2>/dev/null |
+            grep -q '^Status: RUNNING$'; then
+            echo "Error: project is already mounted: $target"
+            return 1
+        fi
+
+        incus config device remove "$instance" "$device" || return 1
     fi
 
-    incus config device set "$instance" workspace source="$workspace" || return 1
-    incus start "$instance" || return 1
+    if ! incus info "$instance" 2>/dev/null |
+        grep -q '^Status: RUNNING$'; then
+        incus start "$instance" || return 1
+    fi
+
+    incus config device add "$instance" "$device" disk \
+        source="$source_dir" \
+        path="$target" \
+        shift=true || return 1
+
+    mounted=1
 
     if [[ "$1" == "shell" ]]; then
-        incus exec "$instance" --cwd /workspace -- bash
-
-    elif [[ "$1" == "list" ]]; then
         shift
-
-        incus exec "$instance" --cwd /workspace -- bash -c '
-            package=""
-
-            while IFS= read -r line; do
-                trimmed="${line#"${line%%[![:space:]]*}"}"
-
-                [[ -z "$trimmed" ]] && continue
-
-                if [[ "$trimmed" == "User packages:" ]]; then
-                    printf "%s\n" "$trimmed"
-                    continue
-                fi
-
-                if [[ "$trimmed" == /* ]]; then
-                    path="$trimmed"
-                    version=""
-
-                    if [[ -f "$path/package.json" ]]; then
-                        version="$(node -p \
-                            "require(process.argv[1]).version || \"\"" \
-                            "$path/package.json" 2>/dev/null)"
-                    fi
-
-                    if [[ -n "$package" ]]; then
-                        if [[ -n "$version" ]]; then
-                            printf "  %s @%s\n" "$package" "$version"
-                        else
-                            printf "  %s\n" "$package"
-                        fi
-                    fi
-
-                    printf "    %s\n" "$path"
-                    package=""
-                else
-                    package="$trimmed"
-                fi
-            done < <(pi list "$@")
-
-            if [[ -n "$package" ]]; then
-                printf "  %s\n" "$package"
-            fi
-        ' _ "$@"
-
+        incus exec "$instance" --cwd "$target" -- bash "$@"
     else
-        incus exec "$instance" --cwd /workspace -- pi "$@"
+        incus exec "$instance" --cwd "$target" -- pi "$@"
     fi
 
     exit_code=$?
 
-    incus exec "$instance" -- sh -c 'cd /workspace && find . -xdev -exec chown --no-dereference --reference=. {} +'
+    _pi_sandbox_shared_cleanup
 
-    incus stop "$instance"
+    trap - INT TERM HUP
+    unfunction _pi_sandbox_shared_cleanup 2>/dev/null
+
     return "$exit_code"
 }
-alias pi='pi-sandbox'
+alias pi='pi-sandbox-shared'
 
 # minimal docker ps colored tab
 docker-ps() {

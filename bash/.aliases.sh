@@ -129,7 +129,7 @@ pi-sandbox-docker() {
 }
 
 # start pi coding agent in lxc container
-pi-sandbox-shared() {
+pi-sandbox-incus-shared() {
     emulate -L zsh
     setopt localtraps
 
@@ -180,11 +180,12 @@ pi-sandbox-shared() {
                 incus stop "$instance"
             fi
 
-            echo "$instance stopped"
+            printf '%s \033[31mstopped\033[0m\n' "$instance"
         elif (( active_sessions == 1 )); then
-            echo "1 active session, $instance still running"
+            printf '1 active session, %s \033[33mstill running\033[0m\n' "$instance"
         else
-            echo "$active_sessions active sessions, $instance still running"
+            printf '%s active sessions, %s \033[33mstill running\033[0m\n' \
+                "$active_sessions" "$instance"
         fi
     }
 
@@ -220,6 +221,51 @@ pi-sandbox-shared() {
     if [[ "$1" == "shell" ]]; then
         shift
         incus exec "$instance" --cwd "$target" -- bash "$@"
+
+    elif [[ "$1" == "list" ]]; then
+        shift
+
+        incus exec "$instance" --cwd /workspace -- bash -c '
+            package=""
+
+            while IFS= read -r line; do
+                trimmed="${line#"${line%%[![:space:]]*}"}"
+
+                [[ -z "$trimmed" ]] && continue
+
+                if [[ "$trimmed" == "User packages:" ]]; then
+                    printf "%s\n" "$trimmed"
+                    continue
+                fi
+
+                if [[ "$trimmed" == /* ]]; then
+                    path="$trimmed"
+                    version=""
+
+                    if [[ -f "$path/package.json" ]]; then
+                        version="$(node -p "require(process.argv[1]).version || \"\"" "$path/package.json" 2>/dev/null)"
+                    fi
+
+                    if [[ -n "$package" ]]; then
+                        if [[ -n "$version" ]]; then
+                            printf "  %s - %s\n" "$package" "$version"
+                        else
+                            printf "  %s\n" "$package"
+                        fi
+                    fi
+
+                    printf "\033[90m    %s\033[0m\n" "$path"
+                    package=""
+                else
+                    package="$trimmed"
+                fi
+            done < <(pi list "$@")
+
+            if [[ -n "$package" ]]; then
+                printf "  %s\n" "$package"
+            fi
+        ' _ "$@"
+
     else
         incus exec "$instance" --cwd "$target" -- pi "$@"
     fi
@@ -233,7 +279,7 @@ pi-sandbox-shared() {
 
     return "$exit_code"
 }
-alias pi='pi-sandbox-shared'
+alias pi='pi-sandbox-incus-shared'
 
 # minimal docker ps colored tab
 docker-ps() {
@@ -258,35 +304,123 @@ nano() {
 
 # Lazy command to perform git status-add-commit and skippable push
 lazygit() {
-    local push=true
-    local message=""
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+        emulate -L zsh
+        setopt ksh_arrays
+    fi
+
+    local message="" arg choice
+    local skip_push=0 file_index=0 tracked_count=0
+    local -a changed_files=()
 
     for arg in "$@"; do
         if [[ "$arg" == "-np" ]]; then
-            push=false
-        else
+            skip_push=1
+        elif [[ -z "$message" ]]; then
             message="$arg"
+        else
+            printf 'Usage: lazygit "commit message" [-np]\n'
+            return 1
         fi
     done
 
     if [[ -z "$message" ]]; then
-        echo "Usage: lazygit \"commit message\" [-np]"
+        printf 'Usage: lazygit "commit message" [-np]\n'
         return 1
     fi
 
-    git status &&
-    git add . &&
-    git commit -m "$message" || return 1
+    git status || return 1
 
+    while true; do
+        printf 'Proceed, differences, or abort/quit? [P/d/a/q] '
+        IFS= read -r choice || return 1
+        case "$choice" in
+            ''|[pP]*) break ;;
+            [dD]*)
+                git diff --stat --color=always || return 1
+                while true; do
+                    printf 'Proceed, review, or abort/quit? [P/r/a/q] '
+                    IFS= read -r choice || return 1
+                    case "$choice" in
+                        ''|[pP]*) break 2 ;;
+                        [rR]*)
+                            while IFS= read -r -d '' arg; do
+                                changed_files+=("$arg")
+                            done < <(git diff HEAD --name-only -z)
+                            tracked_count=${#changed_files[@]}
+                            while IFS= read -r -d '' arg; do
+                                changed_files+=("$arg")
+                            done < <(git ls-files --others --exclude-standard -z)
+
+                            if (( ${#changed_files[@]} == 0 )); then
+                                printf 'No changed files to review.\n'
+                                continue
+                            fi
+
+                            file_index=0
+                            while true; do
+                                if (( file_index < tracked_count )); then
+                                    git diff --color=always HEAD -- "${changed_files[$file_index]}" || return 1
+                                else
+                                    git diff --color=always --no-index -- /dev/null "${changed_files[$file_index]}"
+                                    (( $? <= 1 )) || return 1
+                                fi
+                                while true; do
+                                    if (( file_index == ${#changed_files[@]} - 1 )); then
+                                        printf 'Continue, previous, next, or abort/quit? [C/p/n/a/q] '
+                                    else
+                                        printf 'Continue, previous, next, or abort/quit? [c/p/N/a/q] '
+                                    fi
+                                    IFS= read -r choice || return 1
+                                    if [[ -z "$choice" ]]; then
+                                        if (( file_index == ${#changed_files[@]} - 1 )); then
+                                            choice=c
+                                        else
+                                            choice=n
+                                        fi
+                                    fi
+                                    case "$choice" in
+                                        [cC]*) break 4 ;;
+                                        [pP]*)
+                                            if (( file_index > 0 )); then
+                                                ((file_index -= 1))
+                                                break
+                                            fi
+                                            printf 'Already at the first file.\n'
+                                            ;;
+                                        [nN]*)
+                                            if (( file_index < ${#changed_files[@]} - 1 )); then
+                                                ((file_index += 1))
+                                                break
+                                            fi
+                                            printf 'Already at the last file.\n'
+                                            ;;
+                                        [aA]*|[qQ]*) return 1 ;;
+                                        *) printf 'Please choose continue, previous, next, or abort/quit.\n' ;;
+                                    esac
+                                done
+                            done
+                            ;;
+                        [aA]*|[qQ]*) return 1 ;;
+                        *) printf 'Please choose proceed, review, or abort/quit.\n' ;;
+                    esac
+                done
+                ;;
+            [aA]*|[qQ]*) return 1 ;;
+            *) printf 'Please choose proceed, differences, or abort/quit.\n' ;;
+        esac
+    done
+
+    git add . && git commit -m "$message" || return 1
     printf '\033[7;32m     Committed       \033[0m\n'
 
-    if $push; then
+    if (( ! skip_push )); then
         git push || return 1
         printf '\033[7;32m     Pushed          \033[0m\n'
     else
         printf '\033[7;33m     Push skipped    \033[0m\n'
     fi
 
-    echo
+    printf '\n'
     git show --stat --oneline --color=always HEAD
 }

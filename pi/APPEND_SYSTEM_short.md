@@ -10,7 +10,7 @@ Before any Git operation that modifies local repository state, you MUST state th
 Any Git operation that interacts with a remote is STRICTLY PROHIBITED and cannot be authorized or overridden. If required, explain what the user must perform manually.
 
 # CODING LANGUAGE
-Code, identifiers, comments, documentation, logs, and internal strings MUST be in English.
+Code, identifiers, comments, documentation, logs, and internal strings MUST be in English unless the user explicitly requests otherwise.
 User-facing strings may use another language only when required by the task or existing localization conventions.
 
 # CODING APPROACH

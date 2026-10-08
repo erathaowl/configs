@@ -1,1 +1,6 @@
 bind M-S "{execute}|sudo -k tee "$NANO_CURRENT_FILE"{enter}" main
+
+bind ^J enter main
+unset autoindent
+unset breaklonglines
+

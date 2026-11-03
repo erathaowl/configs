@@ -120,167 +120,6 @@ ipscan() {
 #   and ask to proceed with upgrade
 alias supdate='sudo apt update && apt list --upgradable && read -t 10 -p "Press [ENTER] or wait 10 seconds..."; sudo NEEDRESTART_MODE=a apt dist-upgrade -y && sudo apt autoremove -y && sudo apt clean -y'
 
-# pi-agend sandbox via docker
-pi-sandbox-docker() { 
-    docker run --rm -it \
-        -v "${PWD}:/workspace" \
-        -v "pi-agent-home:/root/.pi/agent" \
-        pi-sandbox "$@"
-}
-
-# start pi coding agent in lxc container
-pi-sandbox-incus-shared() {
-    emulate -L zsh
-    setopt localtraps
-
-    local instance="pi-sandbox"
-    local source_dir
-    local project_name
-    local safe_name
-    local hash
-    local device
-    local target
-    local exit_code=0
-    local mounted=0
-    local cleaning=0
-    local active_sessions=0
-
-    source_dir="$(realpath -- "$PWD")" || return 1
-    project_name="$(basename -- "$source_dir")"
-    safe_name="$(printf '%s' "$project_name" | sed 's/[^[:alnum:]_.-]/-/g')"
-    hash="$(printf '%s' "$source_dir" | sha256sum | cut -c1-5)"
-
-    device="piw-${safe_name}-${hash}"
-    target="/ws/${safe_name}-${hash}"
-
-    _pi_sandbox_shared_cleanup() {
-        (( cleaning )) && return
-        cleaning=1
-
-        if (( mounted )); then
-            echo "Restoring ownership: $source_dir"
-
-            incus exec "$instance" -- sh -c \
-                'cd "$1" && find . -xdev -exec chown --no-dereference --reference=. {} +' \
-                _ "$target"
-
-            #echo "Removing workspace device: $device"
-            incus config device remove "$instance" "$device"
-            mounted=0
-        fi
-
-        active_sessions="$(
-            incus config device list "$instance" 2>/dev/null |
-                grep -Ec '^piw-.*-[[:xdigit:]]{5}$' || true
-        )"
-
-        if (( active_sessions == 0 )); then
-            if incus info "$instance" 2>/dev/null |
-                grep -q '^Status: RUNNING$'; then
-                incus stop "$instance"
-            fi
-
-            printf '%s \033[31mstopped\033[0m\n' "$instance"
-        elif (( active_sessions == 1 )); then
-            printf '1 active session, %s \033[33mstill running\033[0m\n' "$instance"
-        else
-            printf '%s active sessions, %s \033[33mstill running\033[0m\n' \
-                "$active_sessions" "$instance"
-        fi
-    }
-
-    trap '_pi_sandbox_shared_cleanup; return 130' INT
-    trap '_pi_sandbox_shared_cleanup; return 143' TERM
-    trap '_pi_sandbox_shared_cleanup; return 129' HUP
-
-    # Remove a stale device left by an interrupted previous execution.
-    if incus config device list "$instance" 2>/dev/null |
-        grep -Fxq "$device"; then
-
-        if incus info "$instance" 2>/dev/null |
-            grep -q '^Status: RUNNING$'; then
-            echo "Error: project is already mounted: $target"
-            return 1
-        fi
-
-        incus config device remove "$instance" "$device" || return 1
-    fi
-
-    if ! incus info "$instance" 2>/dev/null |
-        grep -q '^Status: RUNNING$'; then
-        incus start "$instance" || return 1
-    fi
-
-    incus config device add "$instance" "$device" disk \
-        source="$source_dir" \
-        path="$target" \
-        shift=true || return 1
-
-    mounted=1
-
-    if [[ "$1" == "shell" ]]; then
-        shift
-        incus exec "$instance" --cwd "$target" -- bash "$@"
-
-    elif [[ "$1" == "list" ]]; then
-        shift
-
-        incus exec "$instance" --cwd /workspace -- bash -c '
-            package=""
-
-            while IFS= read -r line; do
-                trimmed="${line#"${line%%[![:space:]]*}"}"
-
-                [[ -z "$trimmed" ]] && continue
-
-                if [[ "$trimmed" == "User packages:" ]]; then
-                    printf "%s\n" "$trimmed"
-                    continue
-                fi
-
-                if [[ "$trimmed" == /* ]]; then
-                    path="$trimmed"
-                    version=""
-
-                    if [[ -f "$path/package.json" ]]; then
-                        version="$(node -p "require(process.argv[1]).version || \"\"" "$path/package.json" 2>/dev/null)"
-                    fi
-
-                    if [[ -n "$package" ]]; then
-                        if [[ -n "$version" ]]; then
-                            printf "  %s - %s\n" "$package" "$version"
-                        else
-                            printf "  %s\n" "$package"
-                        fi
-                    fi
-
-                    printf "\033[90m    %s\033[0m\n" "$path"
-                    package=""
-                else
-                    package="$trimmed"
-                fi
-            done < <(pi list "$@")
-
-            if [[ -n "$package" ]]; then
-                printf "  %s\n" "$package"
-            fi
-        ' _ "$@"
-
-    else
-        incus exec "$instance" --cwd "$target" -- pi "$@"
-    fi
-
-    exit_code=$?
-
-    _pi_sandbox_shared_cleanup
-
-    trap - INT TERM HUP
-    unfunction _pi_sandbox_shared_cleanup 2>/dev/null
-
-    return "$exit_code"
-}
-alias pi='pi-sandbox-incus-shared'
-
 # minimal docker ps colored tab
 docker-ps() {
     docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}" \
@@ -424,3 +263,71 @@ lazygit() {
     printf '\n'
     git show --stat --oneline --color=always HEAD
 }
+
+delhist() {
+    local index="${1:--1}"
+
+    [[ "$index" =~ ^-?[1-9][0-9]*$ ]] || return 2
+    [[ -n "${HISTFILE:-}" ]] || return 1
+
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+        local entry
+        entry=$(fc -ln "$index" "$index") || return 1
+        [[ -n "$entry" ]] || return 1
+
+        local previous_ignore="${HISTORY_IGNORE:-}"
+        local HISTORY_IGNORE="${(b)entry}"
+        [[ -n "$previous_ignore" ]] && HISTORY_IGNORE="($previous_ignore|$HISTORY_IGNORE)"
+
+        fc -W && fc -p "$HISTFILE" "$HISTSIZE" "$SAVEHIST"
+
+    elif [[ -n "${BASH_VERSION:-}" ]]; then
+        (( index < 0 )) && index=$((index - 1))
+        history -d "$index" && history -w
+    fi
+}
+
+
+# simple speedtest via github python script
+sspeedtest() {
+    curl -s https://raw.githubusercontent.com/PeterLinuxOSS/speedtest-cli/master/speedtest.py | python3 -
+}
+
+# Install or update an optional module. Return 2 for usage errors, 1 on failure.
+aliases-install() {
+    if [ "$#" -ne 1 ]; then
+        printf 'Usage: aliases-install <pi|codex>\n' >&2
+        return 2
+    fi
+    case "$1" in
+        pi|codex) ;;
+        *) printf 'aliases-install: unsupported module: %s\n' "$1" >&2; return 2 ;;
+    esac
+
+    local directory="$HOME/.config/aliases.d"
+    local temporary
+    mkdir -p -- "$directory" || return 1
+    temporary=$(mktemp "$directory/.$1.XXXXXX") || return 1
+
+    if ! wget -qO "$temporary" "https://raw.githubusercontent.com/erathaowl/configs/main/bash/modules/$1.sh"; then
+        rm -f -- "$temporary"
+        printf 'aliases-install: download failed: %s\n' "$1" >&2
+        return 1
+    fi
+    if ! mv -f -- "$temporary" "$directory/$1.sh"; then
+        rm -f -- "$temporary"
+        printf 'aliases-install: could not install: %s\n' "$1" >&2
+        return 1
+    fi
+
+    # Modules guard their own shell-specific helpers.
+    . "$directory/$1.sh"
+}
+
+# Optional modules are installed separately; shell startup never downloads them.
+if [ -f "$HOME/.config/aliases.d/pi.sh" ]; then
+    . "$HOME/.config/aliases.d/pi.sh"
+fi
+if [ -f "$HOME/.config/aliases.d/codex.sh" ]; then
+    . "$HOME/.config/aliases.d/codex.sh"
+fi

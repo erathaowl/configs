@@ -1,0 +1,24 @@
+{
+  "lastChangelogVersion": "1.5.0",
+  "packages": [
+    "npm:pi-implement",
+    "npm:@erathaowl/pi-chatgpt-limit"
+  ],
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6-luna",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "openai-codex/gpt-6-luna",
+    "openai-codex/gpt-6.1-terra",
+    "openai-codex/gpt-6.1-sol",
+    "openai-codex/gpt-6-astra"
+  ],
+  "enableInstallTelemetry": false,
+  "modelThinkingLevels": {
+    "openai-codex/gpt-6-luna": "high",
+    "openai-codex/gpt-6.1-terra": "low",
+    "openai-codex/gpt-6.1-sol": "medium",
+    "openai-codex/gpt-6-astra": "xhigh"
+  },
+  "shellCommandPrefix": "shopt -s expand_aliases\nsource ~/.bash_aliases"
+}

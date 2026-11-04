@@ -10,10 +10,10 @@ it does not install the commands referenced by its aliases.
 
 ## Install the core
 
-Download the core using the public aliases URL:
+Download the core directly from GitHub:
 
 ```sh
-wget -qO ~/.bash_aliases https://fmzlab.com/aliases
+wget -qO ~/.bash_aliases https://raw.githubusercontent.com/erathaowl/configs/main/bash/.aliases.sh
 . ~/.bash_aliases
 ```
 
@@ -162,11 +162,9 @@ The installer:
 5. Sources the installed file immediately. Each module guards its Zsh-only
    definitions, so installation from Bash is safe.
 
-The `https://fmzlab.com/aliases` URL is for the **core** download; the module
-installer uses the GitHub URL above. The installer returns `2` for invalid usage
-and `1` for download/filesystem failures; on successful installation it returns
-the result of sourcing the module (normally `0`). Core updates and module
-updates are separate operations.
+The installer returns `2` for invalid usage and `1` for download/filesystem
+failures; on successful installation it returns the result of sourcing the
+module (normally `0`). Core updates and module updates are separate operations.
 
 ### Automatic loading
 

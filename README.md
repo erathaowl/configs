@@ -15,6 +15,10 @@ Italian keyboard:
 See the [shell aliases documentation](bash/readme.md) for installation, usage,
 and optional Pi and Codex modules.
 
+## Pi sandbox
+
+See the [Pi sandbox documentation](pi/README.md) (also available in [Italian](pi/README-it.md)).
+
 ## starship prompt
 
 `sudo apt install starship`\

@@ -336,6 +336,7 @@ incus info pi-sandbox >/dev/null 2>&1 || \
 sudo install -d -m 700 /etc/pi
 sudo chmod 600 /etc/pi/auth.json
 sudo chmod 600 /etc/pi/APPEND_SYSTEM.md
+sudo chmod 600 /etc/pi/settings.json
 ```
 
 File usati:
@@ -343,6 +344,7 @@ File usati:
 ```text
 /etc/pi/auth.json
 /etc/pi/APPEND_SYSTEM.md
+/etc/pi/settings.json
 ```
 
 ### 9. Mount
@@ -381,6 +383,17 @@ incus config device add \
     pi-sandbox pi-append-system-prompt disk \
     source=/etc/pi/APPEND_SYSTEM.md \
     path=/root/.pi/agent/APPEND_SYSTEM.md \
+    shift=true
+```
+
+`settings.json`:
+
+```bash
+incus config device remove pi-sandbox pi-settings.json 2>/dev/null || true
+incus config device add \
+    pi-sandbox pi-settings.json disk \
+    source=/etc/pi/settings.json \
+    path=/root/.pi/agent/settings.json \
     shift=true
 ```
 
@@ -485,7 +498,7 @@ incus launch pi-sandbox pi-sandbox \
     --network pi-sandbox-net
 ```
 
-Dopo la ricreazione riapplicare i tre device `workspace`, `pi-auth` e `pi-append-system-prompt`.
+Dopo la ricreazione riapplicare i device `workspace`, `pi-auth`, `pi-append-system-prompt` e `pi-settings.json`.
 
 
 ### Riferimenti implementativi

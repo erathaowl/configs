@@ -277,22 +277,10 @@ the helper attempts to:
 3. Count remaining workspace devices for that agent and stop the instance if
    none remain; otherwise report that it is still running.
 
-The agent or shell exit status is returned on the normal completion path.
-Different projects can run in the same instance.
-
-The Pi helper uses host-side advisory locks in
-`~/.cache/pi-sandbox-incus/`: a per-project lock prevents overlapping Pi
-launches, while an instance lock serializes device changes and instance
-start/stop operations. If an existing mount is found, the helper checks
-running processes inside the container before removing it. An inaccessible
-process check is treated as busy, leaving the mount intact. It also runs
-cleanup when the launcher returns or receives INT, TERM, or HUP. After an
-untrappable termination such as SIGKILL, the next invocation can recover
-an orphaned mount. `flock` (util-linux) is required on the host.
-
-The Codex helper retains its earlier behavior: it rejects a project already
-mounted in a running instance, and recovers matching mounts when the instance
-is stopped.
+The agent or shell exit status is returned on the normal completion path. A
+project already mounted in a running instance is rejected; a matching stale
+device on a stopped instance is removed before retrying. Different project
+mounts can share the same agent instance.
 
 These are shared-instance convenience helpers, not a guarantee of cleanup or
 isolation between sessions. Abrupt termination, command failures, or concurrent

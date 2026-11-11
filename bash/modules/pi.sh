@@ -25,6 +25,15 @@ pi-sandbox-incus-shared() {
     local cleaning=0
     local active_sessions=0
 
+    if [[ "$1" == "force-remove" ]]; then
+        if [[ $# -ne 2 || -z "$2" ]]; then
+            echo "Usage: pi force-remove <project-id>" >&2
+            return 2
+        fi
+        incus config device remove "$instance" "piw-$2"
+        return $?
+    fi
+
     source_dir="$(realpath -- "$PWD")" || return 1
     project_name="$(basename -- "$source_dir")"
     safe_name="$(printf '%s' "$project_name" | sed 's/[^[:alnum:]_.-]/-/g')"
@@ -80,6 +89,7 @@ pi-sandbox-incus-shared() {
         if incus info "$instance" 2>/dev/null |
             grep -q '^Status: RUNNING$'; then
             echo "Error: project is already mounted: $target"
+            echo "For orphan session use: pi force-remove ${device#piw-}"
             return 1
         fi
 
